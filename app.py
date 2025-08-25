@@ -271,35 +271,6 @@ def render_analytics_dashboard():
 
     st.header("📊 Analytics Dashboard")
 
-    # Add wipe analytics button with warning
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col2:
-        if st.button("🗑️ Wipe Analytics", type="secondary"):
-            st.session_state.show_wipe_warning = True
-    
-    # Show warning and confirmation
-    if st.session_state.get("show_wipe_warning", False):
-        st.warning("⚠️ **WARNING: This action cannot be undone!**")
-        st.error("This will permanently delete all analytics data including processing history, scores, and performance metrics.")
-        
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col1:
-            if st.button("✅ Yes, Delete All Data", type="primary"):
-                try:
-                    # Delete analytics file
-                    if os.path.exists("analytics.json"):
-                        os.remove("analytics.json")
-                    st.session_state.show_wipe_warning = False
-                    st.success("✅ Analytics data wiped successfully!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error wiping analytics: {e}")
-        
-        with col2:
-            if st.button("❌ Cancel", type="secondary"):
-                st.session_state.show_wipe_warning = False
-                st.rerun()
-
     # Get analytics summary
     analytics = get_analytics_summary()
 
@@ -338,6 +309,36 @@ def render_analytics_dashboard():
         st.line_chart(recent_df.set_index('timestamp')['processing_time'])
 
     st.markdown("---")
+    
+    # Add wipe analytics button at the bottom with warning
+    st.subheader("🗑️ Data Management")
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col2:
+        if st.button("🗑️ Wipe Analytics", type="secondary"):
+            st.session_state.show_wipe_warning = True
+    
+    # Show warning and confirmation
+    if st.session_state.get("show_wipe_warning", False):
+        st.warning("⚠️ **WARNING: This action cannot be undone!**")
+        st.error("This will permanently delete all analytics data including processing history, scores, and performance metrics.")
+        
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col1:
+            if st.button("✅ Yes, Delete All Data", type="primary"):
+                try:
+                    # Delete analytics file
+                    if os.path.exists("analytics.json"):
+                        os.remove("analytics.json")
+                    st.session_state.show_wipe_warning = False
+                    st.success("✅ Analytics data wiped successfully!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error wiping analytics: {e}")
+        
+        with col2:
+            if st.button("❌ Cancel", type="secondary"):
+                st.session_state.show_wipe_warning = False
+                st.rerun()
 
 
 def render_sidebar():
