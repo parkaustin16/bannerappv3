@@ -383,90 +383,103 @@ def render_analytics_dashboard():
 
 def render_sidebar():
     """Render the sidebar with all controls."""
-    st.sidebar.title("⚙️ Settings")
+    try:
+        st.sidebar.title("⚙️ Settings")
 
-    # Detection Settings
-    with st.sidebar.expander("🔎 Detection Settings", expanded=False):
-        st.session_state.overlap_threshold = st.slider(
-            "Minimum overlap (%) for text to count as inside a zone",
-            min_value=0.0, max_value=1.0, value=st.session_state.overlap_threshold,
-            step=0.01, format="%.4f"
-        )
+        # Detection Settings
+        with st.sidebar.expander("🔎 Detection Settings", expanded=False):
+            st.session_state.overlap_threshold = st.slider(
+                "Minimum overlap (%) for text to count as inside a zone",
+                min_value=0.0, max_value=1.0, value=st.session_state.overlap_threshold,
+                step=0.01, format="%.4f"
+            )
 
-    # Text Zones Management
-    with st.sidebar.expander("📐 Text Zones", expanded=False):
-        st.markdown("### Add Text Zone")
-        zone_name = st.text_input("Zone Name", value="Zone 1", key="text_zone_name")
+        # Text Zones Management
+        with st.sidebar.expander("📐 Text Zones", expanded=False):
+            st.markdown("### Add Text Zone")
+            zone_name = st.text_input("Zone Name", value="Zone 1", key="text_zone_name")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            tz_x = st.number_input("X", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="tz_x")
-            tz_y = st.number_input("Y", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="tz_y")
-        with col2:
-            tz_w = st.number_input("Width", min_value=0.0, max_value=1.0, value=0.3, step=0.01, format="%.4f",
-                                   key="tz_w")
-            tz_h = st.number_input("Height", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f",
-                                   key="tz_h")
+            col1, col2 = st.columns(2)
+            with col1:
+                tz_x = st.number_input("X", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="tz_x")
+                tz_y = st.number_input("Y", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="tz_y")
+            with col2:
+                tz_w = st.number_input("Width", min_value=0.0, max_value=1.0, value=0.3, step=0.01, format="%.4f",
+                                       key="tz_w")
+                tz_h = st.number_input("Height", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f",
+                                       key="tz_h")
 
-        if st.button("💾 Add Text Zone"):
-            if add_text_zone(zone_name, tz_x, tz_y, tz_w, tz_h):
-                st.success(f"✅ Text zone '{zone_name}' added!")
-                st.rerun()
+            if st.button("💾 Add Text Zone"):
+                if add_text_zone(zone_name, tz_x, tz_y, tz_w, tz_h):
+                    st.success(f"✅ Text zone '{zone_name}' added!")
+                    st.rerun()
 
-        # Display saved zones
-        if st.session_state.text_zones:
-            st.markdown("**Current Text Zones:**")
-            for i, item in enumerate(st.session_state.text_zones):
-                name = item.get("name", f"Zone {i + 1}")
-                zx, zy, zw, zh = item.get("zone", (0, 0, 0, 0))
-                st.write(f"{i + 1}: **{name}** → (x={zx:.4f}, y={zy:.4f}, w={zw:.4f}, h={zh:.4f})")
+            # Display saved zones
+            if st.session_state.text_zones:
+                st.markdown("**Current Text Zones:**")
+                for i, item in enumerate(st.session_state.text_zones):
+                    try:
+                        name = item.get("name", f"Zone {i + 1}")
+                        zx, zy, zw, zh = item.get("zone", (0, 0, 0, 0))
+                        st.write(f"{i + 1}: **{name}** → (x={zx:.4f}, y={zy:.4f}, w={zw:.4f}, h={zh:.4f})")
 
-                if st.button(f"❌ Delete", key=f"del_text_zone_{i}"):
-                    if delete_text_zone(i):
-                        st.rerun()
+                        if st.button(f"❌ Delete", key=f"del_text_zone_{i}"):
+                            if delete_text_zone(i):
+                                st.rerun()
+                    except Exception as e:
+                        st.error(f"Error displaying text zone {i}: {e}")
 
-    # Ignore Settings
-    with st.sidebar.expander("🛑 Ignore Settings", expanded=False):
-        ignore_input = st.text_area("Enter words/phrases to ignore (comma separated):", key="ignore_input")
-        if st.button("Add Ignore Terms"):
-            new_terms = [t.strip() for t in ignore_input.split(",") if t.strip()]
-            if add_ignore_terms(new_terms):
-                st.rerun()
+        # Ignore Settings
+        with st.sidebar.expander("🛑 Ignore Settings", expanded=False):
+            ignore_input = st.text_area("Enter words/phrases to ignore (comma separated):", key="ignore_input")
+            if st.button("Add Ignore Terms"):
+                new_terms = [t.strip() for t in ignore_input.split(",") if t.strip()]
+                if add_ignore_terms(new_terms):
+                    st.rerun()
 
-        if st.session_state.persistent_ignore_terms:
-            st.markdown("**Ignored Terms:**")
-            for term in st.session_state.persistent_ignore_terms:
-                st.write(f"- {term}")
+            if st.session_state.persistent_ignore_terms:
+                st.markdown("**Ignored Terms:**")
+                for term in st.session_state.persistent_ignore_terms:
+                    st.write(f"- {term}")
 
-        st.markdown("### Add Ignore Zone")
-        zone_name = st.text_input("Zone Name", value="Ignore Zone 1", key="ignore_zone_name")
+            st.markdown("### Add Ignore Zone")
+            zone_name = st.text_input("Zone Name", value="Ignore Zone 1", key="ignore_zone_name")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            iz_x = st.number_input("X", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="iz_x")
-            iz_y = st.number_input("Y", min_value=0.0, max_value=1.0, value=0.9, step=0.01, format="%.4f", key="iz_y")
-        with col2:
-            iz_w = st.number_input("Width", min_value=0.0, max_value=1.0, value=0.8, step=0.01, format="%.4f",
-                                   key="iz_w")
-            iz_h = st.number_input("Height", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f",
-                                   key="iz_h")
+            col1, col2 = st.columns(2)
+            with col1:
+                iz_x = st.number_input("X", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="iz_x")
+                iz_y = st.number_input("Y", min_value=0.0, max_value=1.0, value=0.9, step=0.01, format="%.4f", key="iz_y")
+            with col2:
+                iz_w = st.number_input("Width", min_value=0.0, max_value=1.0, value=0.8, step=0.01, format="%.4f",
+                                       key="iz_w")
+                iz_h = st.number_input("Height", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f",
+                                       key="iz_h")
 
-        if st.button("Add Ignore Zone"):
-            if add_ignore_zone(zone_name, iz_x, iz_y, iz_w, iz_h):
-                st.success(f"✅ Ignore zone '{zone_name}' added!")
-                st.rerun()
+            if st.button("Add Ignore Zone"):
+                if add_ignore_zone(zone_name, iz_x, iz_y, iz_w, iz_h):
+                    st.success(f"✅ Ignore zone '{zone_name}' added!")
+                    st.rerun()
 
-        # Display saved ignore zones
-        if st.session_state.ignore_zones:
-            st.markdown("**Current Ignore Zones:**")
-            for i, item in enumerate(st.session_state.ignore_zones):
-                name = item.get("name", f"Zone {i + 1}")
-                zx, zy, zw, zh = item.get("zone", (0, 0, 0, 0))
-                st.write(f"{i + 1}: **{name}** → (x={zx:.4f}, y={zy:.4f}, w={zw:.4f}, h={zh:.4f})")
+            # Display saved ignore zones
+            if st.session_state.ignore_zones:
+                st.markdown("**Current Ignore Zones:**")
+                for i, item in enumerate(st.session_state.ignore_zones):
+                    try:
+                        name = item.get("name", f"Zone {i + 1}")
+                        zx, zy, zw, zh = item.get("zone", (0, 0, 0, 0))
+                        st.write(f"{i + 1}: **{name}** → (x={zx:.4f}, y={zy:.4f}, w={zw:.4f}, h={zh:.4f})")
 
-                if st.button(f"❌ Delete", key=f"del_ignore_zone_{i}"):
-                    if delete_ignore_zone(i):
-                        st.rerun()
+                        if st.button(f"❌ Delete", key=f"del_ignore_zone_{i}"):
+                            if delete_ignore_zone(i):
+                                st.rerun()
+                    except Exception as e:
+                        st.error(f"Error displaying ignore zone {i}: {e}")
+                        
+    except Exception as e:
+        st.sidebar.error(f"Error rendering sidebar: {e}")
+        # Try to show basic controls if sidebar fails
+        st.sidebar.title("⚙️ Settings (Limited)")
+        st.sidebar.info("Some settings may be unavailable due to an error.")
 
 
 def render_process_mode():
@@ -682,21 +695,29 @@ def render_process_mode():
 # --- Main Application Logic ---
 def main():
     """Main application function."""
-    # Initialize session state
-    initialize_session_state()
+    try:
+        # Initialize session state
+        initialize_session_state()
 
-    # Render header
-    render_header()
+        # Render header
+        render_header()
 
-    # Render analytics dashboard if requested
-    render_analytics_dashboard()
+        # Render analytics dashboard if requested
+        render_analytics_dashboard()
 
-    # Render sidebar
-    render_sidebar()
+        # Render sidebar
+        render_sidebar()
 
-    # Render main content based on mode
-    if st.session_state.current_mode == "process":
-        render_process_mode()
+        # Render main content based on mode
+        if st.session_state.current_mode == "process":
+            render_process_mode()
+            
+    except Exception as e:
+        st.error(f"Application error: {e}")
+        st.info("Please refresh the page to restart the application.")
+        # Show a simple restart button
+        if st.button("🔄 Restart Application"):
+            st.rerun()
 
 
 if __name__ == "__main__":
