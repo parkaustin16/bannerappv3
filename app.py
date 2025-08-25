@@ -52,13 +52,17 @@ def run_ocr_cached(_reader, img_bytes: bytes, image_hash: str, contrast_ths=0.05
         decoder=decoder,
     )
 
+# (auto-adjust helpers removed)
 
 # --- Session State Management ---
 def initialize_session_state():
     """Initialize all session state variables."""
     try:
+        # Load defaults and initialize session copy
+        if "text_zones_default" not in st.session_state:
+            st.session_state.text_zones_default = load_json_cached(TEXT_ZONES_FILE, [])
         if "text_zones" not in st.session_state:
-            st.session_state.text_zones = load_json_cached(TEXT_ZONES_FILE, [])
+            st.session_state.text_zones = list(st.session_state.text_zones_default)
 
         if "persistent_ignore_terms" not in st.session_state:
             st.session_state.persistent_ignore_terms = load_json_cached(IGNORE_FILE, [])
@@ -71,6 +75,10 @@ def initialize_session_state():
 
         if "batch_results" not in st.session_state:
             st.session_state.batch_results = []
+
+        # Track uploads to reset zones per image upload
+        if "_last_upload_signatures" not in st.session_state:
+            st.session_state._last_upload_signatures = None
 
         if "current_mode" not in st.session_state:
             st.session_state.current_mode = "process"
@@ -109,7 +117,11 @@ def add_text_zone(name: str, x: float, y: float, w: float, h: float) -> bool:
             "zone": (float(x), float(y), float(w), float(h))
         })
         st.session_state.text_zones = zones_list
-        return save_json(TEXT_ZONES_FILE, zones_list)
+        try:
+            _reprocess_from_cache()
+        except Exception:
+            pass
+        return True
     except Exception as e:
         st.error(f"Error adding text zone: {e}")
         return False
@@ -122,10 +134,39 @@ def delete_text_zone(index: int) -> bool:
         if 0 <= index < len(zones_list):
             zones_list.pop(index)
             st.session_state.text_zones = zones_list
-            return save_json(TEXT_ZONES_FILE, zones_list)
+            try:
+                _reprocess_from_cache()
+            except Exception:
+                pass
+            return True
         return False
     except Exception as e:
         st.error(f"Error deleting text zone: {e}")
+        return False
+
+
+def update_text_zone(index: int, x: float, y: float, w: float, h: float) -> bool:
+    """Update an existing text zone by index with clamped normalized values."""
+    try:
+        zones_list = st.session_state.text_zones.copy()
+        if 0 <= index < len(zones_list):
+            # clamp values
+            x = float(max(0.0, min(1.0, x)))
+            w = float(max(0.0, min(1.0, w)))
+            h = float(max(0.0, min(1.0, h)))
+            y = float(max(0.0, min(1.0 - h, y)))
+            if x + w > 1.0:
+                w = max(0.0, 1.0 - x)
+            zones_list[index]["zone"] = (x, y, w, h)
+            st.session_state.text_zones = zones_list
+            try:
+                _reprocess_from_cache()
+            except Exception:
+                pass
+            return True
+        return False
+    except Exception as e:
+        st.error(f"Error updating text zone: {e}")
         return False
 
 
@@ -139,7 +180,11 @@ def add_ignore_zone(name: str, x: float, y: float, w: float, h: float) -> bool:
             "zone": (float(x), float(y), float(w), float(h))
         })
         st.session_state.ignore_zones = zones_list
-        return save_json(IGNORE_ZONES_FILE, zones_list)
+        try:
+            _reprocess_from_cache()
+        except Exception:
+            pass
+        return True
     except Exception as e:
         st.error(f"Error adding ignore zone: {e}")
         return False
@@ -152,10 +197,38 @@ def delete_ignore_zone(index: int) -> bool:
         if 0 <= index < len(zones_list):
             zones_list.pop(index)
             st.session_state.ignore_zones = zones_list
-            return save_json(IGNORE_ZONES_FILE, zones_list)
+            try:
+                _reprocess_from_cache()
+            except Exception:
+                pass
+            return True
         return False
     except Exception as e:
         st.error(f"Error deleting ignore zone: {e}")
+        return False
+
+
+def update_ignore_zone(index: int, x: float, y: float, w: float, h: float) -> bool:
+    """Update an existing ignore zone by index with clamped normalized values."""
+    try:
+        zones_list = st.session_state.ignore_zones.copy()
+        if 0 <= index < len(zones_list):
+            x = float(max(0.0, min(1.0, x)))
+            w = float(max(0.0, min(1.0, w)))
+            h = float(max(0.0, min(1.0, h)))
+            y = float(max(0.0, min(1.0 - h, y)))
+            if x + w > 1.0:
+                w = max(0.0, 1.0 - x)
+            zones_list[index]["zone"] = (x, y, w, h)
+            st.session_state.ignore_zones = zones_list
+            try:
+                _reprocess_from_cache()
+            except Exception:
+                pass
+            return True
+        return False
+    except Exception as e:
+        st.error(f"Error updating ignore zone: {e}")
         return False
 
 
@@ -176,7 +249,9 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
     """Process image with OCR and return results."""
     start_time = time.time()
     w, h = img.size
-    draw = ImageDraw.Draw(img)
+    # Draw on a copy to preserve original
+    annotated_img = img.copy()
+    draw = ImageDraw.Draw(annotated_img)
 
     # Validate aspect ratio
     aspect_ratio_valid, aspect_ratio = validate_image_aspect_ratio(img)
@@ -197,10 +272,12 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
             st.error(f"Error processing ignore zone {name}: {e}")
             continue
 
-    # Draw text zones
+    # Draw text zones (optionally hide undetected sections if detection map exists)
+    det_map = st.session_state.get("_detected_sections")
     for item in st.session_state.text_zones:
         try:
             name = item.get("name", "Zone")
+            # Always draw current zones so adjustments are visible
             zone_data = item.get("zone", (0, 0, 0, 0))
             # Ensure we have valid numbers
             nx, ny, nw, nh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(zone_data[3])
@@ -210,7 +287,7 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
             st.error(f"Error processing text zone {name}: {e}")
             continue
 
-    # Prepare image for OCR
+    # Prepare image for OCR (use original image, not annotated)
     img_bytes = io.BytesIO()
     img.save(img_bytes, format="PNG")
     img_bytes = img_bytes.getvalue()
@@ -300,13 +377,30 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
         "image_size": (w, h),
         "zones_used": sum(used_zones.values()),
         "timestamp": datetime.now().isoformat(),
-        "annotated_image": img
+        "annotated_image": annotated_img
     }
 
     # Save analytics data
     save_analytics_data(result)
 
     return result
+
+
+def _reprocess_from_cache():
+    """Redraw current image with updated zones without re-uploading.
+    Uses cached reader and image bytes if available.
+    """
+    if not st.session_state.get("_cached_img_bytes"):
+        return
+    try:
+        img = Image.open(io.BytesIO(st.session_state["_cached_img_bytes"]))
+        reader = st.session_state.get("_cached_reader") or load_reader()
+        result = process_image(img.convert("RGB"), reader, st.session_state.overlap_threshold, st.session_state.get("_cached_img_name", "Cached"))
+        # Replace the first result for immediate UI update if single image
+        if st.session_state.batch_results:
+            st.session_state.batch_results[0] = result
+    except Exception:
+        pass
 
 
 # --- UI Components ---
@@ -419,6 +513,8 @@ def render_sidebar():
 
         # Text Zones Management
         with st.sidebar.expander("📐 Text Zones", expanded=False):
+            # (auto-adjust button removed)
+
             st.markdown("### Add Text Zone")
             zone_name = st.text_input("Zone Name", value="Zone 1", key="text_zone_name")
 
@@ -448,9 +544,52 @@ def render_sidebar():
                         zx, zy, zw, zh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(zone_data[3])
                         st.write(f"{i + 1}: **{name}** → (x={zx:.4f}, y={zy:.4f}, w={zw:.4f}, h={zh:.4f})")
 
-                        if st.button(f"❌ Delete", key=f"del_text_zone_{i}"):
-                            if delete_text_zone(i):
-                                st.rerun()
+                        col_a, col_b, col_c, col_d = st.columns([1,1,1,1])
+                        with col_a:
+                            if st.button(f"❌ Delete", key=f"del_text_zone_{i}"):
+                                delete_text_zone(i)
+                        with col_b:
+                            if st.button(f"✏️ Edit fields", key=f"edit_text_zone_{i}"):
+                                st.session_state[f"_edit_text_zone_{i}"] = True
+                        with col_c:
+                            if st.button(f"⬆️ Move Y -0.02", key=f"move_up_text_zone_{i}"):
+                                update_text_zone(i, zx, max(0.0, zy - 0.02), zw, zh)
+                        with col_d:
+                            if st.button(f"⬇️ Move Y +0.02", key=f"move_down_text_zone_{i}"):
+                                update_text_zone(i, zx, min(1.0 - zh, zy + 0.02), zw, zh)
+
+                        # Y-axis expand/shrink controls
+                        col_e, col_f = st.columns(2)
+                        with col_e:
+                            if st.button(f"⬆️ Expand Height +0.02", key=f"expand_text_zone_{i}"):
+                                new_h = min(1.0 - zy, zh + 0.02)
+                                update_text_zone(i, zx, zy, zw, new_h)
+                        with col_f:
+                            if st.button(f"⬇️ Shrink Height -0.02", key=f"shrink_text_zone_{i}"):
+                                new_h = max(0.0, zh - 0.02)
+                                update_text_zone(i, zx, zy, zw, new_h)
+
+                        # Inline edit form
+                        if st.session_state.get(f"_edit_text_zone_{i}"):
+                            st.markdown("Edit fields:")
+                            ec1, ec2, ec3, ec4 = st.columns(4)
+                            with ec1:
+                                ex = st.number_input("X", min_value=0.0, max_value=1.0, value=zx, step=0.01, format="%.4f", key=f"edit_tz_x_{i}")
+                            with ec2:
+                                ey = st.number_input("Y", min_value=0.0, max_value=1.0, value=zy, step=0.01, format="%.4f", key=f"edit_tz_y_{i}")
+                            with ec3:
+                                ew = st.number_input("W", min_value=0.0, max_value=1.0, value=zw, step=0.01, format="%.4f", key=f"edit_tz_w_{i}")
+                            with ec4:
+                                eh = st.number_input("H", min_value=0.0, max_value=1.0, value=zh, step=0.01, format="%.4f", key=f"edit_tz_h_{i}")
+                            ec5, ec6 = st.columns(2)
+                            with ec5:
+                                if st.button("Save", key=f"save_text_zone_{i}"):
+                                    if update_text_zone(i, ex, ey, ew, eh):
+                                        st.session_state.pop(f"_edit_text_zone_{i}", None)
+                                        st.success("Saved")
+                            with ec6:
+                                if st.button("Cancel", key=f"cancel_text_zone_{i}"):
+                                    st.session_state.pop(f"_edit_text_zone_{i}", None)
                     except Exception as e:
                         st.error(f"Error displaying text zone {i}: {e}")
 
@@ -460,7 +599,12 @@ def render_sidebar():
             if st.button("Add Ignore Terms"):
                 new_terms = [t.strip() for t in ignore_input.split(",") if t.strip()]
                 if add_ignore_terms(new_terms):
-                    st.rerun()
+                    # clear input and reprocess current image to update score/infractions immediately
+                    st.session_state["ignore_input"] = ""
+                    try:
+                        _reprocess_from_cache()
+                    except Exception:
+                        pass
 
             if st.session_state.persistent_ignore_terms:
                 st.markdown("**Ignored Terms:**")
@@ -496,9 +640,34 @@ def render_sidebar():
                         zx, zy, zw, zh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(zone_data[3])
                         st.write(f"{i + 1}: **{name}** → (x={zx:.4f}, y={zy:.4f}, w={zw:.4f}, h={zh:.4f})")
 
-                        if st.button(f"❌ Delete", key=f"del_ignore_zone_{i}"):
-                            if delete_ignore_zone(i):
-                                st.rerun()
+                        col_a, col_b = st.columns(2)
+                        with col_a:
+                            if st.button(f"❌ Delete", key=f"del_ignore_zone_{i}"):
+                                delete_ignore_zone(i)
+                        with col_b:
+                            if st.button(f"✏️ Edit fields", key=f"edit_ignore_zone_{i}"):
+                                st.session_state[f"_edit_ignore_zone_{i}"] = True
+
+                        if st.session_state.get(f"_edit_ignore_zone_{i}"):
+                            st.markdown("Edit fields:")
+                            ec1, ec2, ec3, ec4 = st.columns(4)
+                            with ec1:
+                                ex = st.number_input("X", min_value=0.0, max_value=1.0, value=zx, step=0.01, format="%.4f", key=f"edit_iz_x_{i}")
+                            with ec2:
+                                ey = st.number_input("Y", min_value=0.0, max_value=1.0, value=zy, step=0.01, format="%.4f", key=f"edit_iz_y_{i}")
+                            with ec3:
+                                ew = st.number_input("W", min_value=0.0, max_value=1.0, value=zw, step=0.01, format="%.4f", key=f"edit_iz_w_{i}")
+                            with ec4:
+                                eh = st.number_input("H", min_value=0.0, max_value=1.0, value=zh, step=0.01, format="%.4f", key=f"edit_iz_h_{i}")
+                            ec5, ec6 = st.columns(2)
+                            with ec5:
+                                if st.button("Save", key=f"save_ignore_zone_{i}"):
+                                    if update_ignore_zone(i, ex, ey, ew, eh):
+                                        st.session_state.pop(f"_edit_ignore_zone_{i}", None)
+                                        st.success("Saved")
+                            with ec6:
+                                if st.button("Cancel", key=f"cancel_ignore_zone_{i}"):
+                                    st.session_state.pop(f"_edit_ignore_zone_{i}", None)
                     except Exception as e:
                         st.error(f"Error displaying ignore zone {i}: {e}")
                         
@@ -523,6 +692,15 @@ def render_process_mode():
     )
 
     if uploaded_files:
+        # Reset zones to defaults per new upload set (but keep in-session edits until the new upload occurs)
+        try:
+            current_sig = tuple(sorted(f.name for f in uploaded_files))
+        except Exception:
+            current_sig = None
+        if current_sig and st.session_state._last_upload_signatures != current_sig:
+            st.session_state.text_zones = list(st.session_state.text_zones_default)
+            st.session_state.ignore_zones = load_json_cached(IGNORE_ZONES_FILE, [])
+            st.session_state._last_upload_signatures = current_sig
         # Determine if single or multiple images
         is_single = len(uploaded_files) == 1
 
@@ -534,12 +712,19 @@ def render_process_mode():
 
             # Load OCR reader once
             ocr_reader = load_reader()
+            # cache reader for quick redraws
+            st.session_state["_cached_reader"] = ocr_reader
 
             for i, uploaded_file in enumerate(uploaded_files):
                 status_text.text(f"Processing {uploaded_file.name}...")
 
                 try:
                     img = Image.open(uploaded_file).convert("RGB")
+                    # cache original bytes for redraws
+                    raw_buf = io.BytesIO()
+                    img.save(raw_buf, format="PNG")
+                    st.session_state["_cached_img_bytes"] = raw_buf.getvalue()
+                    st.session_state["_cached_img_name"] = uploaded_file.name
                     result = process_image(img, ocr_reader, st.session_state.overlap_threshold, uploaded_file.name)
                     st.session_state.batch_results.append(result)
                 except Exception as e:
