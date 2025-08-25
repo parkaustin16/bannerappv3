@@ -103,9 +103,10 @@ def add_text_zone(name: str, x: float, y: float, w: float, h: float) -> bool:
     """Add a new text zone."""
     try:
         zones_list = st.session_state.text_zones.copy()
+        # Use float() to ensure we have valid numbers, avoid rounding issues
         zones_list.append({
             "name": name,
-            "zone": (round(x, 4), round(y, 4), round(w, 4), round(h, 4))
+            "zone": (float(x), float(y), float(w), float(h))
         })
         st.session_state.text_zones = zones_list
         return save_json(TEXT_ZONES_FILE, zones_list)
@@ -132,9 +133,10 @@ def add_ignore_zone(name: str, x: float, y: float, w: float, h: float) -> bool:
     """Add a new ignore zone."""
     try:
         zones_list = st.session_state.ignore_zones.copy()
+        # Use float() to ensure we have valid numbers, avoid rounding issues
         zones_list.append({
             "name": name,
-            "zone": (round(x, 4), round(y, 4), round(w, 4), round(h, 4))
+            "zone": (float(x), float(y), float(w), float(h))
         })
         st.session_state.ignore_zones = zones_list
         return save_json(IGNORE_ZONES_FILE, zones_list)
@@ -182,17 +184,31 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
     # Convert zones to absolute coordinates
     abs_ignore_zones = []
     for item in st.session_state.ignore_zones:
-        name, (nx, ny, nw, nh) = item["name"], item["zone"]
-        ix, iy, iw, ih = int(nx * w), int(ny * h), int(nw * w), int(nh * h)
-        abs_ignore_zones.append((ix, iy, iw, ih))
-        draw.rectangle([ix, iy, ix + iw, iy + ih], outline="blue", width=3)
-        draw.text((ix + 5, iy + 5), name, fill="blue")
+        try:
+            name = item["name"]
+            zone_data = item["zone"]
+            # Ensure we have valid numbers
+            nx, ny, nw, nh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(zone_data[3])
+            ix, iy, iw, ih = int(nx * w), int(ny * h), int(nw * w), int(nh * h)
+            abs_ignore_zones.append((ix, iy, iw, ih))
+            draw.rectangle([ix, iy, ix + iw, iy + ih], outline="blue", width=3)
+            draw.text((ix + 5, iy + 5), name, fill="blue")
+        except Exception as e:
+            st.error(f"Error processing ignore zone {name}: {e}")
+            continue
 
     # Draw text zones
     for item in st.session_state.text_zones:
-        name, (nx, ny, nw, nh) = item["name"], item["zone"]
-        zx, zy, zw, zh = int(nx * w), int(ny * h), int(nw * w), int(nh * h)
-        draw.rectangle([zx, zy, zx + zw, zy + zh], outline="green", width=3)
+        try:
+            name = item["name"]
+            zone_data = item["zone"]
+            # Ensure we have valid numbers
+            nx, ny, nw, nh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(zone_data[3])
+            zx, zy, zw, zh = int(nx * w), int(ny * h), int(nw * w), int(nh * h)
+            draw.rectangle([zx, zy, zx + zw, zy + zh], outline="green", width=3)
+        except Exception as e:
+            st.error(f"Error processing text zone {name}: {e}")
+            continue
 
     # Prepare image for OCR
     img_bytes = io.BytesIO()
@@ -234,17 +250,24 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
         best_zone = None
 
         for item in st.session_state.text_zones:
-            zone_name, (nx, ny, nw, nh) = item["name"], item["zone"]
-            zx, zy, zw, zh = int(nx * w), int(ny * h), int(nw * w), int(nh * h)
+            try:
+                zone_name = item["name"]
+                zone_data = item["zone"]
+                # Ensure we have valid numbers
+                nx, ny, nw, nh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(zone_data[3])
+                zx, zy, zw, zh = int(nx * w), int(ny * h), int(nw * w), int(nh * h)
 
-            ratio = overlap_ratio((tx, ty, tw, th), (zx, zy, zw, zh))
-            if ratio > best_ratio:
-                best_ratio = ratio
-                best_zone = zone_name
-            if ratio >= overlap_threshold:
-                inside_any = True
-                used_zones[zone_name] = True
-                break
+                ratio = overlap_ratio((tx, ty, tw, th), (zx, zy, zw, zh))
+                if ratio > best_ratio:
+                    best_ratio = ratio
+                    best_zone = zone_name
+                if ratio >= overlap_threshold:
+                    inside_any = True
+                    used_zones[zone_name] = True
+                    break
+            except Exception as e:
+                st.error(f"Error processing text zone {zone_name} in OCR: {e}")
+                continue
 
         # Check ignore terms
         if any(term in detected_text.lower() for term in st.session_state.persistent_ignore_terms):
@@ -420,7 +443,9 @@ def render_sidebar():
                 for i, item in enumerate(st.session_state.text_zones):
                     try:
                         name = item.get("name", f"Zone {i + 1}")
-                        zx, zy, zw, zh = item.get("zone", (0, 0, 0, 0))
+                        zone_data = item.get("zone", (0, 0, 0, 0))
+                        # Ensure we have valid numbers
+                        zx, zy, zw, zh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(zone_data[3])
                         st.write(f"{i + 1}: **{name}** → (x={zx:.4f}, y={zy:.4f}, w={zw:.4f}, h={zh:.4f})")
 
                         if st.button(f"❌ Delete", key=f"del_text_zone_{i}"):
@@ -466,7 +491,9 @@ def render_sidebar():
                 for i, item in enumerate(st.session_state.ignore_zones):
                     try:
                         name = item.get("name", f"Zone {i + 1}")
-                        zx, zy, zw, zh = item.get("zone", (0, 0, 0, 0))
+                        zone_data = item.get("zone", (0, 0, 0, 0))
+                        # Ensure we have valid numbers
+                        zx, zy, zw, zh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(zone_data[3])
                         st.write(f"{i + 1}: **{name}** → (x={zx:.4f}, y={zy:.4f}, w={zw:.4f}, h={zh:.4f})")
 
                         if st.button(f"❌ Delete", key=f"del_ignore_zone_{i}"):
