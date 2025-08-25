@@ -80,6 +80,12 @@ def initialize_session_state():
         # Track uploads to reset zones per image upload
         if "_last_upload_signatures" not in st.session_state:
             st.session_state._last_upload_signatures = None
+        if "_is_single_upload" not in st.session_state:
+            st.session_state._is_single_upload = True
+        if "_cached_img_bytes" not in st.session_state:
+            st.session_state._cached_img_bytes = None
+        if "_cached_img_name" not in st.session_state:
+            st.session_state._cached_img_name = None
 
         if "current_mode" not in st.session_state:
             st.session_state.current_mode = "process"
@@ -391,14 +397,31 @@ def _reprocess_from_cache():
     """Redraw current image with updated zones without re-uploading.
     Uses cached reader and image bytes if available.
     """
-    if not st.session_state.get("_cached_img_bytes"):
+    reader = st.session_state.get("_cached_reader") or load_reader()
+    # Single image fast-path
+    if st.session_state.get("_is_single_upload", True):
+        raw = st.session_state.get("_cached_img_bytes")
+        if not raw:
+            return
+        try:
+            img = Image.open(io.BytesIO(raw))
+            result = process_image(img.convert("RGB"), reader, st.session_state.overlap_threshold,
+                                   st.session_state.get("_cached_img_name", "Cached"))
+            if st.session_state.batch_results:
+                st.session_state.batch_results[0] = result
+        except Exception:
+            pass
+        return
+
+    # Batch: recompute only first image for quick visual feedback
+    batch = st.session_state.get("_cached_batch") or []
+    if not batch:
         return
     try:
-        img = Image.open(io.BytesIO(st.session_state["_cached_img_bytes"]))
-        reader = st.session_state.get("_cached_reader") or load_reader()
+        first = batch[0]
+        img = Image.open(io.BytesIO(first["bytes"]))
         result = process_image(img.convert("RGB"), reader, st.session_state.overlap_threshold,
-                               st.session_state.get("_cached_img_name", "Cached"))
-        # Replace the first result for immediate UI update if single image
+                               first.get("name", "Cached"))
         if st.session_state.batch_results:
             st.session_state.batch_results[0] = result
     except Exception:
@@ -718,6 +741,10 @@ def render_process_mode():
             st.session_state.text_zones = list(st.session_state.text_zones_default)
             st.session_state.ignore_zones = load_json_cached(IGNORE_ZONES_FILE, [])
             st.session_state._last_upload_signatures = current_sig
+            st.session_state._is_single_upload = (len(current_sig) == 1)
+            # clear previous cached image when a new set is uploaded
+            st.session_state._cached_img_bytes = None
+            st.session_state._cached_img_name = None
         # Determine if single or multiple images
         is_single = len(uploaded_files) == 1
 
@@ -731,6 +758,8 @@ def render_process_mode():
             ocr_reader = load_reader()
             # cache reader for quick redraws
             st.session_state["_cached_reader"] = ocr_reader
+            # prepare cache list for batch redraws
+            cached_batch = []
 
             for i, uploaded_file in enumerate(uploaded_files):
                 status_text.text(f"Processing {uploaded_file.name}...")
@@ -740,8 +769,10 @@ def render_process_mode():
                     # cache original bytes for redraws
                     raw_buf = io.BytesIO()
                     img.save(raw_buf, format="PNG")
-                    st.session_state["_cached_img_bytes"] = raw_buf.getvalue()
+                    raw_bytes = raw_buf.getvalue()
+                    st.session_state["_cached_img_bytes"] = raw_bytes
                     st.session_state["_cached_img_name"] = uploaded_file.name
+                    cached_batch.append({"bytes": raw_bytes, "name": uploaded_file.name})
                     result = process_image(img, ocr_reader, st.session_state.overlap_threshold, uploaded_file.name)
                     st.session_state.batch_results.append(result)
                 except Exception as e:
@@ -749,6 +780,8 @@ def render_process_mode():
 
                 progress_bar.progress((i + 1) / len(uploaded_files))
 
+            # store batch cache for redraws
+            st.session_state["_cached_batch"] = cached_batch
             status_text.text("✅ Processing complete!")
             st.success(f"Processed {len(st.session_state.batch_results)} image(s)")
 
