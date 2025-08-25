@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image, ImageDraw
 import json
 import os
-import easyocr
+from paddleocr import PaddleOCR
 import io
 import hashlib
 import time
@@ -38,19 +38,32 @@ TEXT_ZONES_FILE = "text_zones.json"
 @st.cache_resource
 def load_reader():
     """Load and cache the OCR reader to avoid reloading on every use."""
-    return easyocr.Reader(["en"])
+    return PaddleOCR(use_angle_cls=True, lang='en')
 
 # --- Optimized OCR with Image Hash Caching ---
 @st.cache_data
-def run_ocr_cached(_reader, img_bytes: bytes, image_hash: str, contrast_ths=0.05, adjust_contrast=0.7, text_threshold=0.7, decoder="beamsearch"):
+def run_ocr_cached(_reader, img_bytes: bytes, image_hash: str):
     """Run OCR with caching based on image hash to avoid reprocessing identical images."""
-    return _reader.readtext(
-        img_bytes,
-        contrast_ths=contrast_ths,
-        adjust_contrast=adjust_contrast,
-        text_threshold=text_threshold,
-        decoder=decoder,
-    )
+    # Convert bytes back to PIL Image for PaddleOCR
+    img = Image.open(io.BytesIO(img_bytes))
+    
+    # Run PaddleOCR
+    results = _reader.ocr(img, cls=True)
+    
+    # Convert PaddleOCR format to easyocr-like format
+    formatted_results = []
+    if results and results[0]:
+        for line in results[0]:
+            if line and len(line) >= 2:
+                bbox = line[0]  # [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
+                text_info = line[1]
+                if text_info and len(text_info) >= 2:
+                    text = text_info[0]
+                    confidence = text_info[1]
+                    # Convert to easyocr-like format: [[[x1,y1],[x2,y2],[x3,y3],[x4,y4]], text, confidence]
+                    formatted_results.append((bbox, text, confidence))
+    
+    return formatted_results
 
 # --- Session State Management ---
 def initialize_session_state():

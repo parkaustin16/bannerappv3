@@ -1,9 +1,8 @@
 streamlit>=1.28.0
 Pillow>=10.0.0
 numpy>=1.24.0
-easyocr==1.7.0
+paddlepaddle>=2.4.0
+paddleocr>=2.6.0
 pandas>=2.0.0
 reportlab>=4.0.0
-opencv-python==4.7.0.72
-torch>=1.13.0
-torchvision>=0.14.0
+opencv-python-headless>=4.6.0
