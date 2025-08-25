@@ -56,77 +56,117 @@ def run_ocr_cached(_reader, img_bytes: bytes, image_hash: str, contrast_ths=0.05
 # --- Session State Management ---
 def initialize_session_state():
     """Initialize all session state variables."""
-    if "text_zones" not in st.session_state:
-        st.session_state.text_zones = load_json_cached(TEXT_ZONES_FILE, [])
+    try:
+        if "text_zones" not in st.session_state:
+            st.session_state.text_zones = load_json_cached(TEXT_ZONES_FILE, [])
 
-    if "persistent_ignore_terms" not in st.session_state:
-        st.session_state.persistent_ignore_terms = load_json_cached(IGNORE_FILE, [])
+        if "persistent_ignore_terms" not in st.session_state:
+            st.session_state.persistent_ignore_terms = load_json_cached(IGNORE_FILE, [])
 
-    if "ignore_zones" not in st.session_state:
-        st.session_state.ignore_zones = load_json_cached(IGNORE_ZONES_FILE, [])
+        if "ignore_zones" not in st.session_state:
+            st.session_state.ignore_zones = load_json_cached(IGNORE_ZONES_FILE, [])
 
-    if "overlap_threshold" not in st.session_state:
+        if "overlap_threshold" not in st.session_state:
+            st.session_state.overlap_threshold = 0.75
+
+        if "batch_results" not in st.session_state:
+            st.session_state.batch_results = []
+
+        if "current_mode" not in st.session_state:
+            st.session_state.current_mode = "process"
+
+        if "show_analytics" not in st.session_state:
+            st.session_state.show_analytics = False
+            
+        # Ensure all zone lists are actually lists
+        if not isinstance(st.session_state.text_zones, list):
+            st.session_state.text_zones = []
+        if not isinstance(st.session_state.ignore_zones, list):
+            st.session_state.ignore_zones = []
+        if not isinstance(st.session_state.persistent_ignore_terms, list):
+            st.session_state.persistent_ignore_terms = []
+            
+    except Exception as e:
+        st.error(f"Error initializing session state: {e}")
+        # Set default values if initialization fails
+        st.session_state.text_zones = []
+        st.session_state.ignore_zones = []
+        st.session_state.persistent_ignore_terms = []
         st.session_state.overlap_threshold = 0.75
-
-    if "batch_results" not in st.session_state:
         st.session_state.batch_results = []
-
-    if "current_mode" not in st.session_state:
         st.session_state.current_mode = "process"
-
-    if "show_analytics" not in st.session_state:
         st.session_state.show_analytics = False
 
 
 # --- Zone Management Functions ---
 def add_text_zone(name: str, x: float, y: float, w: float, h: float) -> bool:
     """Add a new text zone."""
-    zones_list = st.session_state.text_zones.copy()
-    zones_list.append({
-        "name": name,
-        "zone": (round(x, 4), round(y, 4), round(w, 4), round(h, 4))
-    })
-    st.session_state.text_zones = zones_list
-    return save_json(TEXT_ZONES_FILE, zones_list)
+    try:
+        zones_list = st.session_state.text_zones.copy()
+        zones_list.append({
+            "name": name,
+            "zone": (round(x, 4), round(y, 4), round(w, 4), round(h, 4))
+        })
+        st.session_state.text_zones = zones_list
+        return save_json(TEXT_ZONES_FILE, zones_list)
+    except Exception as e:
+        st.error(f"Error adding text zone: {e}")
+        return False
 
 
 def delete_text_zone(index: int) -> bool:
     """Delete a text zone by index."""
-    zones_list = st.session_state.text_zones.copy()
-    if 0 <= index < len(zones_list):
-        zones_list.pop(index)
-        st.session_state.text_zones = zones_list
-        return save_json(TEXT_ZONES_FILE, zones_list)
-    return False
+    try:
+        zones_list = st.session_state.text_zones.copy()
+        if 0 <= index < len(zones_list):
+            zones_list.pop(index)
+            st.session_state.text_zones = zones_list
+            return save_json(TEXT_ZONES_FILE, zones_list)
+        return False
+    except Exception as e:
+        st.error(f"Error deleting text zone: {e}")
+        return False
 
 
 def add_ignore_zone(name: str, x: float, y: float, w: float, h: float) -> bool:
     """Add a new ignore zone."""
-    zones_list = st.session_state.ignore_zones.copy()
-    zones_list.append({
-        "name": name,
-        "zone": (round(x, 4), round(y, 4), round(w, 4), round(h, 4))
-    })
-    st.session_state.ignore_zones = zones_list
-    return save_json(IGNORE_ZONES_FILE, zones_list)
+    try:
+        zones_list = st.session_state.ignore_zones.copy()
+        zones_list.append({
+            "name": name,
+            "zone": (round(x, 4), round(y, 4), round(w, 4), round(h, 4))
+        })
+        st.session_state.ignore_zones = zones_list
+        return save_json(IGNORE_ZONES_FILE, zones_list)
+    except Exception as e:
+        st.error(f"Error adding ignore zone: {e}")
+        return False
 
 
 def delete_ignore_zone(index: int) -> bool:
     """Delete an ignore zone by index."""
-    zones_list = st.session_state.ignore_zones.copy()
-    if 0 <= index < len(zones_list):
-        zones_list.pop(index)
-        st.session_state.ignore_zones = zones_list
-        return save_json(IGNORE_ZONES_FILE, zones_list)
-    return False
+    try:
+        zones_list = st.session_state.ignore_zones.copy()
+        if 0 <= index < len(zones_list):
+            zones_list.pop(index)
+            st.session_state.ignore_zones = zones_list
+            return save_json(IGNORE_ZONES_FILE, zones_list)
+        return False
+    except Exception as e:
+        st.error(f"Error deleting ignore zone: {e}")
+        return False
 
 
 def add_ignore_terms(terms: List[str]) -> bool:
     """Add new ignore terms."""
-    new_terms = [t.strip().lower() for t in terms if t.strip()]
-    st.session_state.persistent_ignore_terms.extend(new_terms)
-    st.session_state.persistent_ignore_terms = sorted(set(st.session_state.persistent_ignore_terms))
-    return save_json(IGNORE_FILE, st.session_state.persistent_ignore_terms)
+    try:
+        new_terms = [t.strip().lower() for t in terms if t.strip()]
+        st.session_state.persistent_ignore_terms.extend(new_terms)
+        st.session_state.persistent_ignore_terms = sorted(set(st.session_state.persistent_ignore_terms))
+        return save_json(IGNORE_FILE, st.session_state.persistent_ignore_terms)
+    except Exception as e:
+        st.error(f"Error adding ignore terms: {e}")
+        return False
 
 
 # --- Image Processing ---
