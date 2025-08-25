@@ -52,6 +52,7 @@ def run_ocr_cached(_reader, img_bytes: bytes, image_hash: str, contrast_ths=0.05
         decoder=decoder,
     )
 
+
 # (auto-adjust helpers removed)
 
 # --- Session State Management ---
@@ -85,7 +86,7 @@ def initialize_session_state():
 
         if "show_analytics" not in st.session_state:
             st.session_state.show_analytics = False
-            
+
         # Ensure all zone lists are actually lists
         if not isinstance(st.session_state.text_zones, list):
             st.session_state.text_zones = []
@@ -93,7 +94,7 @@ def initialize_session_state():
             st.session_state.ignore_zones = []
         if not isinstance(st.session_state.persistent_ignore_terms, list):
             st.session_state.persistent_ignore_terms = []
-            
+
     except Exception as e:
         st.error(f"Error initializing session state: {e}")
         # Set default values if initialization fails
@@ -395,7 +396,8 @@ def _reprocess_from_cache():
     try:
         img = Image.open(io.BytesIO(st.session_state["_cached_img_bytes"]))
         reader = st.session_state.get("_cached_reader") or load_reader()
-        result = process_image(img.convert("RGB"), reader, st.session_state.overlap_threshold, st.session_state.get("_cached_img_name", "Cached"))
+        result = process_image(img.convert("RGB"), reader, st.session_state.overlap_threshold,
+                               st.session_state.get("_cached_img_name", "Cached"))
         # Replace the first result for immediate UI update if single image
         if st.session_state.batch_results:
             st.session_state.batch_results[0] = result
@@ -466,19 +468,20 @@ def render_analytics_dashboard():
         st.line_chart(recent_df.set_index('timestamp')['processing_time'])
 
     st.markdown("---")
-    
+
     # Add wipe analytics button at the bottom with warning
     st.subheader("🗑️ Data Management")
     col1, col2, col3 = st.columns([2, 1, 1])
     with col2:
         if st.button("🗑️ Wipe Analytics", type="secondary"):
             st.session_state.show_wipe_warning = True
-    
+
     # Show warning and confirmation
     if st.session_state.get("show_wipe_warning", False):
         st.warning("⚠️ **WARNING: This action cannot be undone!**")
-        st.error("This will permanently delete all analytics data including processing history, scores, and performance metrics.")
-        
+        st.error(
+            "This will permanently delete all analytics data including processing history, scores, and performance metrics.")
+
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
             if st.button("✅ Yes, Delete All Data", type="primary"):
@@ -491,7 +494,7 @@ def render_analytics_dashboard():
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error wiping analytics: {e}")
-        
+
         with col2:
             if st.button("❌ Cancel", type="secondary"):
                 st.session_state.show_wipe_warning = False
@@ -520,8 +523,10 @@ def render_sidebar():
 
             col1, col2 = st.columns(2)
             with col1:
-                tz_x = st.number_input("X", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="tz_x")
-                tz_y = st.number_input("Y", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="tz_y")
+                tz_x = st.number_input("X", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f",
+                                       key="tz_x")
+                tz_y = st.number_input("Y", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f",
+                                       key="tz_y")
             with col2:
                 tz_w = st.number_input("Width", min_value=0.0, max_value=1.0, value=0.3, step=0.01, format="%.4f",
                                        key="tz_w")
@@ -541,10 +546,11 @@ def render_sidebar():
                         name = item.get("name", f"Zone {i + 1}")
                         zone_data = item.get("zone", (0, 0, 0, 0))
                         # Ensure we have valid numbers
-                        zx, zy, zw, zh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(zone_data[3])
+                        zx, zy, zw, zh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(
+                            zone_data[3])
                         st.write(f"{i + 1}: **{name}** → (x={zx:.4f}, y={zy:.4f}, w={zw:.4f}, h={zh:.4f})")
 
-                        col_a, col_b, col_c, col_d = st.columns([1,1,1,1])
+                        col_a, col_b, col_c, col_d = st.columns([1, 1, 1, 1])
                         with col_a:
                             if st.button(f"❌ Delete", key=f"del_text_zone_{i}"):
                                 delete_text_zone(i)
@@ -574,13 +580,17 @@ def render_sidebar():
                             st.markdown("Edit fields:")
                             ec1, ec2, ec3, ec4 = st.columns(4)
                             with ec1:
-                                ex = st.number_input("X", min_value=0.0, max_value=1.0, value=zx, step=0.01, format="%.4f", key=f"edit_tz_x_{i}")
+                                ex = st.number_input("X", min_value=0.0, max_value=1.0, value=zx, step=0.01,
+                                                     format="%.4f", key=f"edit_tz_x_{i}")
                             with ec2:
-                                ey = st.number_input("Y", min_value=0.0, max_value=1.0, value=zy, step=0.01, format="%.4f", key=f"edit_tz_y_{i}")
+                                ey = st.number_input("Y", min_value=0.0, max_value=1.0, value=zy, step=0.01,
+                                                     format="%.4f", key=f"edit_tz_y_{i}")
                             with ec3:
-                                ew = st.number_input("W", min_value=0.0, max_value=1.0, value=zw, step=0.01, format="%.4f", key=f"edit_tz_w_{i}")
+                                ew = st.number_input("W", min_value=0.0, max_value=1.0, value=zw, step=0.01,
+                                                     format="%.4f", key=f"edit_tz_w_{i}")
                             with ec4:
-                                eh = st.number_input("H", min_value=0.0, max_value=1.0, value=zh, step=0.01, format="%.4f", key=f"edit_tz_h_{i}")
+                                eh = st.number_input("H", min_value=0.0, max_value=1.0, value=zh, step=0.01,
+                                                     format="%.4f", key=f"edit_tz_h_{i}")
                             ec5, ec6 = st.columns(2)
                             with ec5:
                                 if st.button("Save", key=f"save_text_zone_{i}"):
@@ -616,8 +626,10 @@ def render_sidebar():
 
             col1, col2 = st.columns(2)
             with col1:
-                iz_x = st.number_input("X", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="iz_x")
-                iz_y = st.number_input("Y", min_value=0.0, max_value=1.0, value=0.9, step=0.01, format="%.4f", key="iz_y")
+                iz_x = st.number_input("X", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f",
+                                       key="iz_x")
+                iz_y = st.number_input("Y", min_value=0.0, max_value=1.0, value=0.9, step=0.01, format="%.4f",
+                                       key="iz_y")
             with col2:
                 iz_w = st.number_input("Width", min_value=0.0, max_value=1.0, value=0.8, step=0.01, format="%.4f",
                                        key="iz_w")
@@ -637,7 +649,8 @@ def render_sidebar():
                         name = item.get("name", f"Zone {i + 1}")
                         zone_data = item.get("zone", (0, 0, 0, 0))
                         # Ensure we have valid numbers
-                        zx, zy, zw, zh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(zone_data[3])
+                        zx, zy, zw, zh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(
+                            zone_data[3])
                         st.write(f"{i + 1}: **{name}** → (x={zx:.4f}, y={zy:.4f}, w={zw:.4f}, h={zh:.4f})")
 
                         col_a, col_b = st.columns(2)
@@ -652,13 +665,17 @@ def render_sidebar():
                             st.markdown("Edit fields:")
                             ec1, ec2, ec3, ec4 = st.columns(4)
                             with ec1:
-                                ex = st.number_input("X", min_value=0.0, max_value=1.0, value=zx, step=0.01, format="%.4f", key=f"edit_iz_x_{i}")
+                                ex = st.number_input("X", min_value=0.0, max_value=1.0, value=zx, step=0.01,
+                                                     format="%.4f", key=f"edit_iz_x_{i}")
                             with ec2:
-                                ey = st.number_input("Y", min_value=0.0, max_value=1.0, value=zy, step=0.01, format="%.4f", key=f"edit_iz_y_{i}")
+                                ey = st.number_input("Y", min_value=0.0, max_value=1.0, value=zy, step=0.01,
+                                                     format="%.4f", key=f"edit_iz_y_{i}")
                             with ec3:
-                                ew = st.number_input("W", min_value=0.0, max_value=1.0, value=zw, step=0.01, format="%.4f", key=f"edit_iz_w_{i}")
+                                ew = st.number_input("W", min_value=0.0, max_value=1.0, value=zw, step=0.01,
+                                                     format="%.4f", key=f"edit_iz_w_{i}")
                             with ec4:
-                                eh = st.number_input("H", min_value=0.0, max_value=1.0, value=zh, step=0.01, format="%.4f", key=f"edit_iz_h_{i}")
+                                eh = st.number_input("H", min_value=0.0, max_value=1.0, value=zh, step=0.01,
+                                                     format="%.4f", key=f"edit_iz_h_{i}")
                             ec5, ec6 = st.columns(2)
                             with ec5:
                                 if st.button("Save", key=f"save_ignore_zone_{i}"):
@@ -670,7 +687,7 @@ def render_sidebar():
                                     st.session_state.pop(f"_edit_ignore_zone_{i}", None)
                     except Exception as e:
                         st.error(f"Error displaying ignore zone {i}: {e}")
-                        
+
     except Exception as e:
         st.sidebar.error(f"Error rendering sidebar: {e}")
         # Try to show basic controls if sidebar fails
@@ -923,7 +940,7 @@ def main():
         # Render main content based on mode
         if st.session_state.current_mode == "process":
             render_process_mode()
-            
+
     except Exception as e:
         st.error(f"Application error: {e}")
         st.info("Please refresh the page to restart the application.")
