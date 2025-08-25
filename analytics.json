@@ -1,0 +1,392 @@
+[
+    {
+        "timestamp": "2025-08-25T09:38:20.680782",
+        "filename": "atbna1.PNG",
+        "score": 95,
+        "infractions": 1,
+        "aspect_ratio_valid": true,
+        "processing_time": 7.104598522186279,
+        "image_size": [
+            1536,
+            576
+        ],
+        "zones_used": 4
+    },
+    {
+        "timestamp": "2025-08-25T09:38:27.021065",
+        "filename": "atbna3.PNG",
+        "score": 85,
+        "infractions": 3,
+        "aspect_ratio_valid": true,
+        "processing_time": 6.30315375328064,
+        "image_size": [
+            1537,
+            575
+        ],
+        "zones_used": 3
+    },
+    {
+        "timestamp": "2025-08-25T09:38:38.691572",
+        "filename": "ausbna.PNG",
+        "score": 75,
+        "infractions": 5,
+        "aspect_ratio_valid": false,
+        "processing_time": 11.6394944190979,
+        "image_size": [
+            1908,
+            711
+        ],
+        "zones_used": 1
+    },
+    {
+        "timestamp": "2025-08-25T09:38:55.035415",
+        "filename": "ausbna1.PNG",
+        "score": 90,
+        "infractions": 2,
+        "aspect_ratio_valid": true,
+        "processing_time": 16.272734880447388,
+        "image_size": [
+            1538,
+            578
+        ],
+        "zones_used": 4
+    },
+    {
+        "timestamp": "2025-08-25T09:39:09.111476",
+        "filename": "ausbna2.PNG",
+        "score": 75,
+        "infractions": 5,
+        "aspect_ratio_valid": false,
+        "processing_time": 13.899410724639893,
+        "image_size": [
+            1920,
+            717
+        ],
+        "zones_used": 3
+    },
+    {
+        "timestamp": "2025-08-25T09:40:54.164692",
+        "filename": "atbna3.PNG",
+        "score": 85,
+        "infractions": 3,
+        "aspect_ratio_valid": true,
+        "processing_time": 0.22858715057373047,
+        "image_size": [
+            1537,
+            575
+        ],
+        "zones_used": 3
+    },
+    {
+        "timestamp": "2025-08-25T09:49:27.126156",
+        "filename": "banner3.PNG",
+        "score": 90,
+        "infractions": 2,
+        "aspect_ratio_valid": true,
+        "processing_time": 9.913332462310791,
+        "image_size": [
+            1372,
+            514
+        ],
+        "zones_used": 4
+    },
+    {
+        "timestamp": "2025-08-25T10:43:47.326376",
+        "filename": "atbna1.PNG",
+        "score": 95,
+        "infractions": 1,
+        "aspect_ratio_valid": true,
+        "processing_time": 5.467547178268433,
+        "image_size": [
+            1536,
+            576
+        ],
+        "zones_used": 4
+    },
+    {
+        "timestamp": "2025-08-25T10:43:52.804379",
+        "filename": "atbna3.PNG",
+        "score": 85,
+        "infractions": 3,
+        "aspect_ratio_valid": true,
+        "processing_time": 5.441957950592041,
+        "image_size": [
+            1537,
+            575
+        ],
+        "zones_used": 3
+    },
+    {
+        "timestamp": "2025-08-25T10:44:02.109335",
+        "filename": "ausbna.PNG",
+        "score": 75,
+        "infractions": 5,
+        "aspect_ratio_valid": false,
+        "processing_time": 9.27332091331482,
+        "image_size": [
+            1908,
+            711
+        ],
+        "zones_used": 1
+    },
+    {
+        "timestamp": "2025-08-25T10:44:09.042563",
+        "filename": "ausbna1.PNG",
+        "score": 90,
+        "infractions": 2,
+        "aspect_ratio_valid": true,
+        "processing_time": 6.910779237747192,
+        "image_size": [
+            1538,
+            578
+        ],
+        "zones_used": 4
+    },
+    {
+        "timestamp": "2025-08-25T10:44:18.342927",
+        "filename": "ausbna2.PNG",
+        "score": 75,
+        "infractions": 5,
+        "aspect_ratio_valid": false,
+        "processing_time": 9.255873918533325,
+        "image_size": [
+            1920,
+            717
+        ],
+        "zones_used": 3
+    },
+    {
+        "timestamp": "2025-08-25T10:44:26.627898",
+        "filename": "banner2처.PNG",
+        "score": 70,
+        "infractions": 6,
+        "aspect_ratio_valid": false,
+        "processing_time": 8.26781964302063,
+        "image_size": [
+            1461,
+            550
+        ],
+        "zones_used": 1
+    },
+    {
+        "timestamp": "2025-08-25T10:44:34.637360",
+        "filename": "banner3.PNG",
+        "score": 90,
+        "infractions": 2,
+        "aspect_ratio_valid": true,
+        "processing_time": 7.987756252288818,
+        "image_size": [
+            1372,
+            514
+        ],
+        "zones_used": 4
+    },
+    {
+        "timestamp": "2025-08-25T10:51:41.689552",
+        "filename": "atbna1.PNG",
+        "score": 95,
+        "infractions": 1,
+        "aspect_ratio_valid": true,
+        "processing_time": 6.343278169631958,
+        "image_size": [
+            1536,
+            576
+        ],
+        "zones_used": 4
+    },
+    {
+        "timestamp": "2025-08-25T10:59:13.081168",
+        "filename": "swbna1.PNG",
+        "score": 90,
+        "infractions": 2,
+        "aspect_ratio_valid": true,
+        "processing_time": 5.76365065574646,
+        "image_size": [
+            1536,
+            578
+        ],
+        "zones_used": 3
+    },
+    {
+        "timestamp": "2025-08-25T10:59:35.728640",
+        "filename": "swbna1.PNG",
+        "score": 90,
+        "infractions": 2,
+        "aspect_ratio_valid": true,
+        "processing_time": 0.09420418739318848,
+        "image_size": [
+            1536,
+            578
+        ],
+        "zones_used": 3
+    },
+    {
+        "timestamp": "2025-08-25T10:59:42.541076",
+        "filename": "ausbna1.PNG",
+        "score": 90,
+        "infractions": 2,
+        "aspect_ratio_valid": true,
+        "processing_time": 6.793071508407593,
+        "image_size": [
+            1538,
+            578
+        ],
+        "zones_used": 4
+    },
+    {
+        "timestamp": "2025-08-25T11:02:06.645530",
+        "filename": "swbna1.PNG",
+        "score": 90,
+        "infractions": 2,
+        "aspect_ratio_valid": true,
+        "processing_time": 0.10759592056274414,
+        "image_size": [
+            1536,
+            578
+        ],
+        "zones_used": 3
+    },
+    {
+        "timestamp": "2025-08-25T11:02:06.910103",
+        "filename": "ausbna1.PNG",
+        "score": 90,
+        "infractions": 2,
+        "aspect_ratio_valid": true,
+        "processing_time": 0.24204778671264648,
+        "image_size": [
+            1538,
+            578
+        ],
+        "zones_used": 4
+    },
+    {
+        "timestamp": "2025-08-25T11:02:35.404033",
+        "filename": "de_3.png",
+        "score": 75,
+        "infractions": 5,
+        "aspect_ratio_valid": true,
+        "processing_time": 28.407225608825684,
+        "image_size": [
+            2872,
+            1078
+        ],
+        "zones_used": 1
+    },
+    {
+        "timestamp": "2025-08-25T11:03:06.924012",
+        "filename": "de_4.png",
+        "score": 95,
+        "infractions": 1,
+        "aspect_ratio_valid": true,
+        "processing_time": 31.337186813354492,
+        "image_size": [
+            2872,
+            1078
+        ],
+        "zones_used": 2
+    },
+    {
+        "timestamp": "2025-08-25T11:03:43.528528",
+        "filename": "de_2.png",
+        "score": -15,
+        "infractions": 23,
+        "aspect_ratio_valid": true,
+        "processing_time": 36.47747993469238,
+        "image_size": [
+            2872,
+            1078
+        ],
+        "zones_used": 1
+    },
+    {
+        "timestamp": "2025-08-25T11:04:08.886766",
+        "filename": "de_1.png",
+        "score": 80,
+        "infractions": 4,
+        "aspect_ratio_valid": true,
+        "processing_time": 25.226256608963013,
+        "image_size": [
+            2872,
+            1078
+        ],
+        "zones_used": 2
+    },
+    {
+        "timestamp": "2025-08-25T11:04:28.999571",
+        "filename": "hk_11.png",
+        "score": 90,
+        "infractions": 2,
+        "aspect_ratio_valid": true,
+        "processing_time": 19.98160433769226,
+        "image_size": [
+            2874,
+            1078
+        ],
+        "zones_used": 2
+    },
+    {
+        "timestamp": "2025-08-25T11:04:48.298098",
+        "filename": "hk_1.png",
+        "score": 50,
+        "infractions": 10,
+        "aspect_ratio_valid": true,
+        "processing_time": 19.16650676727295,
+        "image_size": [
+            2874,
+            1078
+        ],
+        "zones_used": 0
+    },
+    {
+        "timestamp": "2025-08-25T11:05:07.534762",
+        "filename": "hk_7.png",
+        "score": 90,
+        "infractions": 2,
+        "aspect_ratio_valid": true,
+        "processing_time": 19.176206350326538,
+        "image_size": [
+            2874,
+            1078
+        ],
+        "zones_used": 1
+    },
+    {
+        "timestamp": "2025-08-25T11:05:27.926530",
+        "filename": "hk_3.png",
+        "score": 75,
+        "infractions": 5,
+        "aspect_ratio_valid": true,
+        "processing_time": 20.292471170425415,
+        "image_size": [
+            2874,
+            1078
+        ],
+        "zones_used": 0
+    },
+    {
+        "timestamp": "2025-08-25T11:05:49.817005",
+        "filename": "hk_5.png",
+        "score": 70,
+        "infractions": 6,
+        "aspect_ratio_valid": true,
+        "processing_time": 21.79421067237854,
+        "image_size": [
+            2874,
+            1078
+        ],
+        "zones_used": 1
+    },
+    {
+        "timestamp": "2025-08-25T11:06:07.234892",
+        "filename": "hk_13 (1).png",
+        "score": 75,
+        "infractions": 5,
+        "aspect_ratio_valid": true,
+        "processing_time": 17.349691152572632,
+        "image_size": [
+            2874,
+            1078
+        ],
+        "zones_used": 1
+    }
+]
