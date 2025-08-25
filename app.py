@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image, ImageDraw
 import json
 import os
-from paddleocr import PaddleOCR
+import pytesseract
 import io
 import hashlib
 import time
@@ -38,32 +38,37 @@ TEXT_ZONES_FILE = "text_zones.json"
 @st.cache_resource
 def load_reader():
     """Load and cache the OCR reader to avoid reloading on every use."""
-    return PaddleOCR(use_angle_cls=True, lang='en')
+    return pytesseract
 
 # --- Optimized OCR with Image Hash Caching ---
 @st.cache_data
 def run_ocr_cached(_reader, img_bytes: bytes, image_hash: str):
     """Run OCR with caching based on image hash to avoid reprocessing identical images."""
-    # Convert bytes back to PIL Image for PaddleOCR
+    # Convert bytes back to PIL Image for pytesseract
     img = Image.open(io.BytesIO(img_bytes))
     
-    # Run PaddleOCR
-    results = _reader.ocr(img, cls=True)
+    # Get OCR data with bounding boxes
+    ocr_data = _reader.image_to_data(img, output_type=pytesseract.Output.DICT)
     
-    # Convert PaddleOCR format to easyocr-like format
-    formatted_results = []
-    if results and results[0]:
-        for line in results[0]:
-            if line and len(line) >= 2:
-                bbox = line[0]  # [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
-                text_info = line[1]
-                if text_info and len(text_info) >= 2:
-                    text = text_info[0]
-                    confidence = text_info[1]
-                    # Convert to easyocr-like format: [[[x1,y1],[x2,y2],[x3,y3],[x4,y4]], text, confidence]
-                    formatted_results.append((bbox, text, confidence))
+    # Convert to similar format as easyocr
+    results = []
+    for i in range(len(ocr_data['text'])):
+        if int(ocr_data['conf'][i]) > 30:  # Filter low confidence results
+            text = ocr_data['text'][i].strip()
+            if text:  # Only include non-empty text
+                # Create bounding box format similar to easyocr
+                x = ocr_data['left'][i]
+                y = ocr_data['top'][i]
+                w = ocr_data['width'][i]
+                h = ocr_data['height'][i]
+                
+                # Convert to easyocr-like format: [[[x1,y1],[x2,y2],[x3,y3],[x4,y4]], text, confidence]
+                bbox = [[[x, y], [x+w, y], [x+w, y+h], [x, y+h]]]
+                confidence = float(ocr_data['conf'][i]) / 100.0
+                
+                results.append((bbox, text, confidence))
     
-    return formatted_results
+    return results
 
 # --- Session State Management ---
 def initialize_session_state():
