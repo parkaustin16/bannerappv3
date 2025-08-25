@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image, ImageDraw
 import json
 import os
-import pytesseract
+import easyocr
 import io
 import hashlib
 import time
@@ -38,37 +38,19 @@ TEXT_ZONES_FILE = "text_zones.json"
 @st.cache_resource
 def load_reader():
     """Load and cache the OCR reader to avoid reloading on every use."""
-    return pytesseract
+    return easyocr.Reader(["en"])
 
 # --- Optimized OCR with Image Hash Caching ---
 @st.cache_data
-def run_ocr_cached(_reader, img_bytes: bytes, image_hash: str):
+def run_ocr_cached(_reader, img_bytes: bytes, image_hash: str, contrast_ths=0.05, adjust_contrast=0.7, text_threshold=0.7, decoder="beamsearch"):
     """Run OCR with caching based on image hash to avoid reprocessing identical images."""
-    # Convert bytes back to PIL Image for pytesseract
-    img = Image.open(io.BytesIO(img_bytes))
-    
-    # Get OCR data with bounding boxes
-    ocr_data = _reader.image_to_data(img, output_type=pytesseract.Output.DICT)
-    
-    # Convert to similar format as easyocr
-    results = []
-    for i in range(len(ocr_data['text'])):
-        if int(ocr_data['conf'][i]) > 30:  # Filter low confidence results
-            text = ocr_data['text'][i].strip()
-            if text:  # Only include non-empty text
-                # Create bounding box format similar to easyocr
-                x = ocr_data['left'][i]
-                y = ocr_data['top'][i]
-                w = ocr_data['width'][i]
-                h = ocr_data['height'][i]
-                
-                # Convert to easyocr-like format: [[[x1,y1],[x2,y2],[x3,y3],[x4,y4]], text, confidence]
-                bbox = [[[x, y], [x+w, y], [x+w, y+h], [x, y+h]]]
-                confidence = float(ocr_data['conf'][i]) / 100.0
-                
-                results.append((bbox, text, confidence))
-    
-    return results
+    return _reader.readtext(
+        img_bytes,
+        contrast_ths=contrast_ths,
+        adjust_contrast=adjust_contrast,
+        text_threshold=text_threshold,
+        decoder=decoder,
+    )
 
 # --- Session State Management ---
 def initialize_session_state():
