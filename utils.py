@@ -15,10 +15,20 @@ def load_json_cached(file_path: str, default_value: Any) -> Any:
     if os.path.exists(file_path):
         try:
             with open(file_path, "r", encoding='utf-8') as f:
-                return json.load(f)
+                content = f.read().strip()
+                if not content:  # Handle empty files
+                    return default_value
+                return json.loads(content)
         except (json.JSONDecodeError, IOError) as e:
             st.error(f"Error loading {file_path}: {e}")
-            return default_value
+            # Try to backup and recreate the file if it's corrupted
+            try:
+                backup_path = f"{file_path}.backup"
+                if os.path.exists(file_path):
+                    os.rename(file_path, backup_path)
+                return default_value
+            except:
+                return default_value
     return default_value
 
 def save_json(file_path: str, data: Any) -> bool:
@@ -305,7 +315,7 @@ def get_analytics_summary() -> Dict:
     
     total_processed = len(analytics)
     avg_score = sum(entry.get("score", 0) for entry in analytics) / total_processed
-    total_infractions = sum(len(entry.get("penalties", [])) for entry in analytics)
+    total_infractions = sum(entry.get("infractions", 0) for entry in analytics)  # Use infractions field instead of penalties
     success_rate = sum(1 for entry in analytics if entry.get("score", 0) == 100) / total_processed * 100
     avg_processing_time = sum(entry.get("processing_time", 0) for entry in analytics) / total_processed
     
