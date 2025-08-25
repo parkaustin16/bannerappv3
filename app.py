@@ -185,8 +185,8 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
     abs_ignore_zones = []
     for item in st.session_state.ignore_zones:
         try:
-            name = item["name"]
-            zone_data = item["zone"]
+            name = item.get("name", "Ignore Zone")
+            zone_data = item.get("zone", (0, 0, 0, 0))
             # Ensure we have valid numbers
             nx, ny, nw, nh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(zone_data[3])
             ix, iy, iw, ih = int(nx * w), int(ny * h), int(nw * w), int(nh * h)
@@ -200,8 +200,8 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
     # Draw text zones
     for item in st.session_state.text_zones:
         try:
-            name = item["name"]
-            zone_data = item["zone"]
+            name = item.get("name", "Zone")
+            zone_data = item.get("zone", (0, 0, 0, 0))
             # Ensure we have valid numbers
             nx, ny, nw, nh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(zone_data[3])
             zx, zy, zw, zh = int(nx * w), int(ny * h), int(nw * w), int(nh * h)
