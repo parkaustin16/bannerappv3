@@ -15,7 +15,7 @@ from utils import (
     load_json_cached, save_json, get_image_hash, validate_image_aspect_ratio,
     overlap_ratio, convert_ocr_bbox_to_rect, normalize_coordinates, denormalize_coordinates,
     generate_csv_report, generate_pdf_report, get_download_link,
-    load_templates, apply_template, save_analytics_data, get_analytics_summary,
+    save_analytics_data, get_analytics_summary,
     create_zone_preview_image, resize_image_for_display
 )
 
@@ -29,7 +29,6 @@ st.set_page_config(
 )
 
 # --- Configuration Constants ---
-CONFIG_FILE = "zone_presets.json"
 IGNORE_FILE = "ignore_terms.json"
 IGNORE_ZONES_FILE = "ignore_zones.json"
 TEXT_ZONES_FILE = "text_zones.json"
@@ -303,41 +302,11 @@ def render_analytics_dashboard():
     
     st.markdown("---")
 
-def render_template_manager():
-    """Render the template management section."""
-    with st.sidebar.expander("🎨 Templates", expanded=False):
-        templates = load_templates()
-        
-        selected_template = st.selectbox(
-            "Choose a template:",
-            ["None"] + list(templates.keys())
-        )
-        
-        if selected_template != "None":
-            template = templates[selected_template]
-            st.write(f"**{selected_template}**")
-            st.write(template["description"])
-            
-            if st.button("Apply Template"):
-                text_zones, ignore_zones, ignore_terms = apply_template(selected_template)
-                st.session_state.text_zones = text_zones
-                st.session_state.ignore_zones = ignore_zones
-                st.session_state.persistent_ignore_terms = ignore_terms
-                
-                # Save to files
-                save_json(TEXT_ZONES_FILE, text_zones)
-                save_json(IGNORE_ZONES_FILE, ignore_zones)
-                save_json(IGNORE_FILE, ignore_terms)
-                
-                st.success(f"✅ Template '{selected_template}' applied!")
-                st.rerun()
+
 
 def render_sidebar():
     """Render the sidebar with all controls."""
     st.sidebar.title("⚙️ Settings")
-    
-    # Template manager
-    render_template_manager()
     
     # Detection Settings
     with st.sidebar.expander("🔎 Detection Settings", expanded=False):
