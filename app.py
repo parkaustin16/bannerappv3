@@ -19,11 +19,9 @@ from utils import (
     create_zone_preview_image, resize_image_for_display
 )
 
-
-
 # Page configuration
 st.set_page_config(
-    layout="wide", 
+    layout="wide",
     page_title="Banner QA - Text Zones",
     page_icon="🎯"
 )
@@ -33,15 +31,18 @@ IGNORE_FILE = "ignore_terms.json"
 IGNORE_ZONES_FILE = "ignore_zones.json"
 TEXT_ZONES_FILE = "text_zones.json"
 
+
 # --- Cached OCR Reader ---
 @st.cache_resource
 def load_reader():
     """Load and cache the OCR reader to avoid reloading on every use."""
     return easyocr.Reader(["en"])
 
+
 # --- Optimized OCR with Image Hash Caching ---
 @st.cache_data
-def run_ocr_cached(_reader, img_bytes: bytes, image_hash: str, contrast_ths=0.05, adjust_contrast=0.7, text_threshold=0.7, decoder="beamsearch"):
+def run_ocr_cached(_reader, img_bytes: bytes, image_hash: str, contrast_ths=0.05, adjust_contrast=0.7,
+                   text_threshold=0.7, decoder="beamsearch"):
     """Run OCR with caching based on image hash to avoid reprocessing identical images."""
     return _reader.readtext(
         img_bytes,
@@ -51,30 +52,30 @@ def run_ocr_cached(_reader, img_bytes: bytes, image_hash: str, contrast_ths=0.05
         decoder=decoder,
     )
 
+
 # --- Session State Management ---
 def initialize_session_state():
     """Initialize all session state variables."""
     if "text_zones" not in st.session_state:
         st.session_state.text_zones = load_json_cached(TEXT_ZONES_FILE, [])
-    
+
     if "persistent_ignore_terms" not in st.session_state:
         st.session_state.persistent_ignore_terms = load_json_cached(IGNORE_FILE, [])
-    
+
     if "ignore_zones" not in st.session_state:
         st.session_state.ignore_zones = load_json_cached(IGNORE_ZONES_FILE, [])
-    
+
     if "overlap_threshold" not in st.session_state:
         st.session_state.overlap_threshold = 0.75
-    
+
     if "batch_results" not in st.session_state:
         st.session_state.batch_results = []
-    
+
     if "current_mode" not in st.session_state:
         st.session_state.current_mode = "process"
-    
+
     if "show_analytics" not in st.session_state:
         st.session_state.show_analytics = False
-    
 
 
 # --- Zone Management Functions ---
@@ -88,6 +89,7 @@ def add_text_zone(name: str, x: float, y: float, w: float, h: float) -> bool:
     st.session_state.text_zones = zones_list
     return save_json(TEXT_ZONES_FILE, zones_list)
 
+
 def delete_text_zone(index: int) -> bool:
     """Delete a text zone by index."""
     zones_list = st.session_state.text_zones.copy()
@@ -96,6 +98,7 @@ def delete_text_zone(index: int) -> bool:
         st.session_state.text_zones = zones_list
         return save_json(TEXT_ZONES_FILE, zones_list)
     return False
+
 
 def add_ignore_zone(name: str, x: float, y: float, w: float, h: float) -> bool:
     """Add a new ignore zone."""
@@ -107,6 +110,7 @@ def add_ignore_zone(name: str, x: float, y: float, w: float, h: float) -> bool:
     st.session_state.ignore_zones = zones_list
     return save_json(IGNORE_ZONES_FILE, zones_list)
 
+
 def delete_ignore_zone(index: int) -> bool:
     """Delete an ignore zone by index."""
     zones_list = st.session_state.ignore_zones.copy()
@@ -116,6 +120,7 @@ def delete_ignore_zone(index: int) -> bool:
         return save_json(IGNORE_ZONES_FILE, zones_list)
     return False
 
+
 def add_ignore_terms(terms: List[str]) -> bool:
     """Add new ignore terms."""
     new_terms = [t.strip().lower() for t in terms if t.strip()]
@@ -123,16 +128,17 @@ def add_ignore_terms(terms: List[str]) -> bool:
     st.session_state.persistent_ignore_terms = sorted(set(st.session_state.persistent_ignore_terms))
     return save_json(IGNORE_FILE, st.session_state.persistent_ignore_terms)
 
+
 # --- Image Processing ---
 def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filename: str = "Unknown") -> Dict:
     """Process image with OCR and return results."""
     start_time = time.time()
     w, h = img.size
     draw = ImageDraw.Draw(img)
-    
+
     # Validate aspect ratio
     aspect_ratio_valid, aspect_ratio = validate_image_aspect_ratio(img)
-    
+
     # Convert zones to absolute coordinates
     abs_ignore_zones = []
     for item in st.session_state.ignore_zones:
@@ -141,37 +147,37 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
         abs_ignore_zones.append((ix, iy, iw, ih))
         draw.rectangle([ix, iy, ix + iw, iy + ih], outline="blue", width=3)
         draw.text((ix + 5, iy + 5), name, fill="blue")
-    
+
     # Draw text zones
     for item in st.session_state.text_zones:
         name, (nx, ny, nw, nh) = item["name"], item["zone"]
         zx, zy, zw, zh = int(nx * w), int(ny * h), int(nw * w), int(nh * h)
         draw.rectangle([zx, zy, zx + zw, zy + zh], outline="green", width=3)
-    
+
     # Prepare image for OCR
     img_bytes = io.BytesIO()
     img.save(img_bytes, format="PNG")
     img_bytes = img_bytes.getvalue()
-    
+
     # Run OCR with caching
     image_hash = get_image_hash(img)
     results = run_ocr_cached(ocr_reader, img_bytes, image_hash)
-    
+
     penalties = []
     score = 100
     used_zones = {item["name"]: False for item in st.session_state.text_zones}
-    
+
     # Process OCR results
     for (bbox, text, prob) in results:
         detected_text = text.strip()
         tx, ty, tw, th = convert_ocr_bbox_to_rect(bbox)
-        
+
         # Clamp to image bounds
         tx = max(0, min(tx, w - 1))
         ty = max(0, min(ty, h - 1))
         tw = max(1, min(tw, w - tx))
         th = max(1, min(th, h - ty))
-        
+
         # Check ignore zones first
         in_ignore_zone = False
         for izx, izy, izw, izh in abs_ignore_zones:
@@ -181,16 +187,16 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
                 break
         if in_ignore_zone:
             continue
-        
+
         # Check overlap with text zones
         inside_any = False
         best_ratio = 0.0
         best_zone = None
-        
+
         for item in st.session_state.text_zones:
             zone_name, (nx, ny, nw, nh) = item["name"], item["zone"]
             zx, zy, zw, zh = int(nx * w), int(ny * h), int(nw * w), int(nh * h)
-            
+
             ratio = overlap_ratio((tx, ty, tw, th), (zx, zy, zw, zh))
             if ratio > best_ratio:
                 best_ratio = ratio
@@ -199,17 +205,17 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
                 inside_any = True
                 used_zones[zone_name] = True
                 break
-        
+
         # Check ignore terms
         if any(term in detected_text.lower() for term in st.session_state.persistent_ignore_terms):
             draw.rectangle([tx, ty, tx + tw, ty + th], outline="blue", width=2)
             continue
-        
+
         # Mark text based on zone placement
         if inside_any:
             draw.rectangle([tx, ty, tx + tw, ty + th], outline="green", width=2)
             continue
-        
+
         # Text outside zones - penalty
         draw.rectangle([tx, ty, tx + tw, ty + th], outline="red", width=2)
         if best_ratio > 0:
@@ -218,9 +224,9 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
             msg = "Text outside allowed zones"
         penalties.append((msg, detected_text, -5))
         score = max(0, score - 5)  # Ensure score never goes below 0
-    
+
     processing_time = time.time() - start_time
-    
+
     result = {
         "filename": filename,
         "score": score,
@@ -233,17 +239,18 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
         "timestamp": datetime.now().isoformat(),
         "annotated_image": img
     }
-    
+
     # Save analytics data
     save_analytics_data(result)
-    
+
     return result
+
 
 # --- UI Components ---
 def render_header():
     """Render the main header with mode selection."""
     st.title("🎯 Banner QA - Text Zones")
-    
+
     # Mode selection
     col1, col2 = st.columns([1, 1])
     with col1:
@@ -253,19 +260,20 @@ def render_header():
     with col2:
         if st.button("📊 Analytics Dashboard", use_container_width=True):
             st.session_state.show_analytics = not st.session_state.show_analytics
-    
+
     st.markdown("---")
+
 
 def render_analytics_dashboard():
     """Render the analytics dashboard."""
     if not st.session_state.show_analytics:
         return
-    
+
     st.header("📊 Analytics Dashboard")
-    
+
     # Get analytics summary
     analytics = get_analytics_summary()
-    
+
     # Display metrics
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -276,64 +284,65 @@ def render_analytics_dashboard():
         st.metric("Success Rate", f"{analytics['success_rate']}%")
     with col4:
         st.metric("Avg Processing Time", f"{analytics['avg_processing_time']}s")
-    
+
     # Load detailed analytics
     analytics_file = "analytics.json"
     detailed_analytics = load_json_cached(analytics_file, [])
-    
+
     if detailed_analytics:
         # Convert to DataFrame for better visualization
         df = pd.DataFrame(detailed_analytics)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
+
         # Recent activity chart
         st.subheader("Recent Activity")
         recent_df = df.tail(20)
         st.line_chart(recent_df.set_index('timestamp')['score'])
-        
+
         # Score distribution
         st.subheader("Score Distribution")
         score_counts = df['score'].value_counts().sort_index()
         st.bar_chart(score_counts)
-        
+
         # Processing time trends
         st.subheader("Processing Time Trends")
         st.line_chart(recent_df.set_index('timestamp')['processing_time'])
-    
-    st.markdown("---")
 
+    st.markdown("---")
 
 
 def render_sidebar():
     """Render the sidebar with all controls."""
     st.sidebar.title("⚙️ Settings")
-    
+
     # Detection Settings
     with st.sidebar.expander("🔎 Detection Settings", expanded=False):
         st.session_state.overlap_threshold = st.slider(
             "Minimum overlap (%) for text to count as inside a zone",
-            min_value=0.0, max_value=1.0, value=st.session_state.overlap_threshold, 
+            min_value=0.0, max_value=1.0, value=st.session_state.overlap_threshold,
             step=0.01, format="%.4f"
         )
-    
+
     # Text Zones Management
     with st.sidebar.expander("📐 Text Zones", expanded=False):
         st.markdown("### Add Text Zone")
         zone_name = st.text_input("Zone Name", value="Zone 1", key="text_zone_name")
-        
+
         col1, col2 = st.columns(2)
         with col1:
             tz_x = st.number_input("X", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="tz_x")
             tz_y = st.number_input("Y", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="tz_y")
         with col2:
-            tz_w = st.number_input("Width", min_value=0.0, max_value=1.0, value=0.3, step=0.01, format="%.4f", key="tz_w")
-            tz_h = st.number_input("Height", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="tz_h")
-        
+            tz_w = st.number_input("Width", min_value=0.0, max_value=1.0, value=0.3, step=0.01, format="%.4f",
+                                   key="tz_w")
+            tz_h = st.number_input("Height", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f",
+                                   key="tz_h")
+
         if st.button("💾 Add Text Zone"):
             if add_text_zone(zone_name, tz_x, tz_y, tz_w, tz_h):
                 st.success(f"✅ Text zone '{zone_name}' added!")
                 st.rerun()
-        
+
         # Display saved zones
         if st.session_state.text_zones:
             st.markdown("**Current Text Zones:**")
@@ -341,11 +350,11 @@ def render_sidebar():
                 name = item.get("name", f"Zone {i + 1}")
                 zx, zy, zw, zh = item.get("zone", (0, 0, 0, 0))
                 st.write(f"{i + 1}: **{name}** → (x={zx:.4f}, y={zy:.4f}, w={zw:.4f}, h={zh:.4f})")
-                
+
                 if st.button(f"❌ Delete", key=f"del_text_zone_{i}"):
                     if delete_text_zone(i):
                         st.rerun()
-    
+
     # Ignore Settings
     with st.sidebar.expander("🛑 Ignore Settings", expanded=False):
         ignore_input = st.text_area("Enter words/phrases to ignore (comma separated):", key="ignore_input")
@@ -353,28 +362,30 @@ def render_sidebar():
             new_terms = [t.strip() for t in ignore_input.split(",") if t.strip()]
             if add_ignore_terms(new_terms):
                 st.rerun()
-        
+
         if st.session_state.persistent_ignore_terms:
             st.markdown("**Ignored Terms:**")
             for term in st.session_state.persistent_ignore_terms:
                 st.write(f"- {term}")
-        
+
         st.markdown("### Add Ignore Zone")
         zone_name = st.text_input("Zone Name", value="Ignore Zone 1", key="ignore_zone_name")
-        
+
         col1, col2 = st.columns(2)
         with col1:
             iz_x = st.number_input("X", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="iz_x")
             iz_y = st.number_input("Y", min_value=0.0, max_value=1.0, value=0.9, step=0.01, format="%.4f", key="iz_y")
         with col2:
-            iz_w = st.number_input("Width", min_value=0.0, max_value=1.0, value=0.8, step=0.01, format="%.4f", key="iz_w")
-            iz_h = st.number_input("Height", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f", key="iz_h")
-        
+            iz_w = st.number_input("Width", min_value=0.0, max_value=1.0, value=0.8, step=0.01, format="%.4f",
+                                   key="iz_w")
+            iz_h = st.number_input("Height", min_value=0.0, max_value=1.0, value=0.1, step=0.01, format="%.4f",
+                                   key="iz_h")
+
         if st.button("Add Ignore Zone"):
             if add_ignore_zone(zone_name, iz_x, iz_y, iz_w, iz_h):
                 st.success(f"✅ Ignore zone '{zone_name}' added!")
                 st.rerun()
-        
+
         # Display saved ignore zones
         if st.session_state.ignore_zones:
             st.markdown("**Current Ignore Zones:**")
@@ -382,71 +393,73 @@ def render_sidebar():
                 name = item.get("name", f"Zone {i + 1}")
                 zx, zy, zw, zh = item.get("zone", (0, 0, 0, 0))
                 st.write(f"{i + 1}: **{name}** → (x={zx:.4f}, y={zy:.4f}, w={zw:.4f}, h={zh:.4f})")
-                
+
                 if st.button(f"❌ Delete", key=f"del_ignore_zone_{i}"):
                     if delete_ignore_zone(i):
                         st.rerun()
 
+
 def render_process_mode():
     """Render the unified image processing mode (single or multiple images)."""
     st.header("📄 Image Processing")
-    
+
     st.info("💡 **Tip:** You can upload one image or multiple images at once. The system will process them accordingly.")
-    
+
     uploaded_files = st.file_uploader(
-        "Upload banner(s)", 
-        type=["png", "jpg", "jpeg"], 
+        "Upload banner(s)",
+        type=["png", "jpg", "jpeg"],
         accept_multiple_files=True,
         key="process_upload"
     )
-    
+
     if uploaded_files:
         # Determine if single or multiple images
         is_single = len(uploaded_files) == 1
-        
+
         # Auto-process images when uploaded
         if len(uploaded_files) != len(st.session_state.batch_results) or not st.session_state.batch_results:
             st.session_state.batch_results = []
             progress_bar = st.progress(0)
             status_text = st.empty()
-            
+
             # Load OCR reader once
             ocr_reader = load_reader()
-            
+
             for i, uploaded_file in enumerate(uploaded_files):
                 status_text.text(f"Processing {uploaded_file.name}...")
-                
+
                 try:
                     img = Image.open(uploaded_file).convert("RGB")
                     result = process_image(img, ocr_reader, st.session_state.overlap_threshold, uploaded_file.name)
                     st.session_state.batch_results.append(result)
                 except Exception as e:
                     st.error(f"Error processing {uploaded_file.name}: {e}")
-                
+
                 progress_bar.progress((i + 1) / len(uploaded_files))
-            
+
             status_text.text("✅ Processing complete!")
             st.success(f"Processed {len(st.session_state.batch_results)} image(s)")
-    
+
     # Display results
     if st.session_state.batch_results:
         # Determine display mode based on number of images
         is_single = len(st.session_state.batch_results) == 1
-        
+
         if is_single:
             # Single image display
             result = st.session_state.batch_results[0]
-            
+
             col1, col2 = st.columns([2, 1])
             with col1:
-                st.image(result["annotated_image"], caption=f"QA Result – Score: {result['score']}%", use_container_width=True)
-            
+                st.image(result["annotated_image"], caption=f"QA Result – Score: {result['score']}%",
+                         use_container_width=True)
+
             with col2:
                 st.metric("Score", f"{result['score']}%")
                 st.metric("Infractions", len(result["penalties"]))
                 st.metric("Processing Time", f"{result['processing_time']:.2f}s")
                 st.metric("Aspect Ratio", f"{result['aspect_ratio']:.2f}")
-            
+
             # Display penalties
             if result["penalties"]:
                 st.error("Infractions:")
@@ -459,7 +472,7 @@ def render_process_mode():
                         st.write(f"{msg} ({pts})")
             else:
                 st.success("Perfect score! ✅ All text inside zones.")
-            
+
             # Export options for single image
             st.subheader("📤 Export Results")
             col1, col2 = st.columns(2)
@@ -472,7 +485,7 @@ def render_process_mode():
                         file_name=f"banner_qa_{result['filename']}.csv",
                         mime="text/csv"
                     )
-            
+
             with col2:
                 if st.button("📄 Export as PDF"):
                     pdf_data = generate_pdf_report([result])
@@ -483,17 +496,17 @@ def render_process_mode():
                             file_name=f"banner_qa_{result['filename']}.pdf",
                             mime="application/pdf"
                         )
-        
+
         else:
             # Multiple images display (batch mode)
             st.subheader("📊 Batch Results")
-            
+
             # Summary metrics
             total_images = len(st.session_state.batch_results)
             avg_score = sum(r["score"] for r in st.session_state.batch_results) / total_images
             total_infractions = sum(len(r["penalties"]) for r in st.session_state.batch_results)
             success_count = sum(1 for r in st.session_state.batch_results if r["score"] == 100)
-            
+
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("Total Images", total_images)
@@ -503,7 +516,7 @@ def render_process_mode():
                 st.metric("Total Infractions", total_infractions)
             with col4:
                 st.metric("Perfect Scores", success_count)
-            
+
             # Results table
             st.subheader("Detailed Results")
             results_data = []
@@ -515,40 +528,40 @@ def render_process_mode():
                     "Aspect Ratio": f"{result['aspect_ratio']:.2f}",
                     "Processing Time": f"{result['processing_time']:.2f}s"
                 })
-            
+
             df = pd.DataFrame(results_data)
             st.dataframe(df, use_container_width=True)
-            
+
             # Display annotated images with boxes
             st.subheader("📸 Annotated Images")
-            
+
             # Create tabs for better organization
             tab_names = [f"{result['filename']} ({result['score']}%)" for result in st.session_state.batch_results]
             if len(tab_names) > 10:  # If too many images, show first 10
                 tab_names = tab_names[:10]
                 st.info(f"Showing first 10 images. Total processed: {len(st.session_state.batch_results)}")
-            
+
             tabs = st.tabs(tab_names)
-            
+
             for i, (tab, result) in enumerate(zip(tabs, st.session_state.batch_results[:10])):
                 with tab:
                     col1, col2 = st.columns([2, 1])
-                    
+
                     with col1:
                         # Display annotated image
                         st.image(
-                            result["annotated_image"], 
-                            caption=f"Score: {result['score']}% | Infractions: {len(result['penalties'])}", 
+                            result["annotated_image"],
+                            caption=f"Score: {result['score']}% | Infractions: {len(result['penalties'])}",
                             use_container_width=True
                         )
-                    
+
                     with col2:
                         # Display metrics
                         st.metric("Score", f"{result['score']}%")
                         st.metric("Infractions", len(result["penalties"]))
                         st.metric("Processing Time", f"{result['processing_time']:.2f}s")
                         st.metric("Aspect Ratio", f"{result['aspect_ratio']:.2f}")
-                        
+
                         # Display penalties if any
                         if result["penalties"]:
                             st.error("Infractions:")
@@ -559,18 +572,18 @@ def render_process_mode():
                                 else:
                                     msg, pts = pen
                                     st.write(f"• {msg} ({pts})")
-                            
+
                             if len(result["penalties"]) > 5:
                                 st.write(f"... and {len(result['penalties']) - 5} more")
                         else:
                             st.success("✅ Perfect score!")
-                    
+
                     # Show aspect ratio status
                     if result["aspect_ratio_valid"]:
                         st.info("✅ Aspect ratio is valid (8:3)")
                     else:
                         st.warning(f"⚠️ Aspect ratio {result['aspect_ratio']:.2f} is not 8:3")
-            
+
             # Export options for batch
             st.subheader("📤 Export Batch Results")
             col1, col2 = st.columns(2)
@@ -583,7 +596,7 @@ def render_process_mode():
                         file_name=f"batch_qa_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                         mime="text/csv"
                     )
-            
+
             with col2:
                 if st.button("📄 Export as PDF"):
                     pdf_data = generate_pdf_report(st.session_state.batch_results)
@@ -596,25 +609,25 @@ def render_process_mode():
                         )
 
 
-
 # --- Main Application Logic ---
 def main():
     """Main application function."""
     # Initialize session state
     initialize_session_state()
-    
+
     # Render header
     render_header()
-    
+
     # Render analytics dashboard if requested
     render_analytics_dashboard()
-    
+
     # Render sidebar
     render_sidebar()
-    
+
     # Render main content based on mode
     if st.session_state.current_mode == "process":
         render_process_mode()
+
 
 if __name__ == "__main__":
     main()
