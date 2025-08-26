@@ -86,6 +86,15 @@ def initialize_session_state():
             st.session_state._cached_img_bytes = None
         if "_cached_img_name" not in st.session_state:
             st.session_state._cached_img_name = None
+        if "_hidden_zone_indices" not in st.session_state:
+            st.session_state._hidden_zone_indices = set()
+        if "_default_zone_signatures" not in st.session_state:
+            try:
+                st.session_state._default_zone_signatures = set(
+                    (z.get("name", ""), tuple(z.get("zone", (0,0,0,0)))) for z in st.session_state.text_zones_default
+                )
+            except Exception:
+                st.session_state._default_zone_signatures = set()
 
         if "current_mode" not in st.session_state:
             st.session_state.current_mode = "process"
@@ -279,12 +288,13 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
             st.error(f"Error processing ignore zone {name}: {e}")
             continue
 
-    # Draw text zones (optionally hide undetected sections if detection map exists)
-    det_map = st.session_state.get("_detected_sections")
+    # Draw text zones (respect hidden flags)
     for item in st.session_state.text_zones:
         try:
             name = item.get("name", "Zone")
-            # Always draw current zones so adjustments are visible
+            # Skip hidden zones
+            if id(item) in st.session_state._hidden_zone_indices:
+                continue
             zone_data = item.get("zone", (0, 0, 0, 0))
             # Ensure we have valid numbers
             nx, ny, nw, nh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(zone_data[3])
@@ -572,30 +582,40 @@ def render_sidebar():
                         # Ensure we have valid numbers
                         zx, zy, zw, zh = float(zone_data[0]), float(zone_data[1]), float(zone_data[2]), float(
                             zone_data[3])
-                        st.write(f"{i + 1}: **{name}** → (x={zx:.4f}, y={zy:.4f}, w={zw:.4f}, h={zh:.4f})")
+                        st.write(f"{i + 1}. **{name}**  (x={zx:.3f}, y={zy:.3f}, w={zw:.3f}, h={zh:.3f})")
 
-                        col_a, col_b, col_c, col_d = st.columns([1, 1, 1, 1])
-                        with col_a:
-                            if st.button(f"❌ Delete", key=f"del_text_zone_{i}"):
-                                delete_text_zone(i)
-                        with col_b:
-                            if st.button(f"✏️ Edit fields", key=f"edit_text_zone_{i}"):
+                        is_default = (name, (zx, zy, zw, zh)) in st.session_state._default_zone_signatures
+
+                        col1, col2, col3, col4, col5 = st.columns([1,1,1,1,1])
+                        with col1:
+                            hidden = id(item) in st.session_state._hidden_zone_indices
+                            if st.button("👁️ Hide" if not hidden else "👁️ Show", key=f"toggle_hide_tz_{i}"):
+                                if hidden:
+                                    st.session_state._hidden_zone_indices.discard(id(item))
+                                else:
+                                    st.session_state._hidden_zone_indices.add(id(item))
+                                _reprocess_from_cache()
+                        with col2:
+                            if st.button("✏️ Edit", key=f"edit_text_zone_{i}"):
                                 st.session_state[f"_edit_text_zone_{i}"] = True
-                        with col_c:
-                            if st.button(f"⬆️ Move Y -0.02", key=f"move_up_text_zone_{i}"):
+                        with col3:
+                            if st.button("⬆️ Y -0.02", key=f"move_up_text_zone_{i}"):
                                 update_text_zone(i, zx, max(0.0, zy - 0.02), zw, zh)
-                        with col_d:
-                            if st.button(f"⬇️ Move Y +0.02", key=f"move_down_text_zone_{i}"):
+                        with col4:
+                            if st.button("⬇️ Y +0.02", key=f"move_down_text_zone_{i}"):
                                 update_text_zone(i, zx, min(1.0 - zh, zy + 0.02), zw, zh)
+                        with col5:
+                            if (not is_default) and st.button("❌ Delete", key=f"del_text_zone_{i}"):
+                                delete_text_zone(i)
 
                         # Y-axis expand/shrink controls
                         col_e, col_f = st.columns(2)
                         with col_e:
-                            if st.button(f"⬆️ Expand Height +0.02", key=f"expand_text_zone_{i}"):
+                            if st.button("⬆️ H +0.02", key=f"expand_text_zone_{i}"):
                                 new_h = min(1.0 - zy, zh + 0.02)
                                 update_text_zone(i, zx, zy, zw, new_h)
                         with col_f:
-                            if st.button(f"⬇️ Shrink Height -0.02", key=f"shrink_text_zone_{i}"):
+                            if st.button("⬇️ H -0.02", key=f"shrink_text_zone_{i}"):
                                 new_h = max(0.0, zh - 0.02)
                                 update_text_zone(i, zx, zy, zw, new_h)
 
@@ -620,7 +640,6 @@ def render_sidebar():
                                 if st.button("Save", key=f"save_text_zone_{i}"):
                                     if update_text_zone(i, ex, ey, ew, eh):
                                         st.session_state.pop(f"_edit_text_zone_{i}", None)
-                                        st.success("Saved")
                             with ec6:
                                 if st.button("Cancel", key=f"cancel_text_zone_{i}"):
                                     st.session_state.pop(f"_edit_text_zone_{i}", None)
