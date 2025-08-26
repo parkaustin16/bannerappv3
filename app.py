@@ -252,7 +252,7 @@ def add_ignore_terms(terms: List[str]) -> bool:
 
 
 # --- Image Processing ---
-def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filename: str = "Unknown") -> Dict:
+def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filename: str = "Unknown", log_analytics: bool = True) -> Dict:
     """Process image with OCR and return results."""
     start_time = time.time()
     w, h = img.size
@@ -387,8 +387,9 @@ def process_image(img: Image.Image, ocr_reader, overlap_threshold: float, filena
         "annotated_image": annotated_img
     }
 
-    # Save analytics data
-    save_analytics_data(result)
+    # Save analytics data (skip during redraws)
+    if log_analytics:
+        save_analytics_data(result)
 
     return result
 
@@ -398,7 +399,7 @@ def _reprocess_from_cache():
     Uses cached reader and image bytes if available.
     """
     reader = st.session_state.get("_cached_reader") or load_reader()
-    # Single image fast-path
+    # Single image: rebuild list with one updated result
     if st.session_state.get("_is_single_upload", True):
         raw = st.session_state.get("_cached_img_bytes")
         if not raw:
@@ -406,24 +407,24 @@ def _reprocess_from_cache():
         try:
             img = Image.open(io.BytesIO(raw))
             result = process_image(img.convert("RGB"), reader, st.session_state.overlap_threshold,
-                                   st.session_state.get("_cached_img_name", "Cached"))
-            if st.session_state.batch_results:
-                st.session_state.batch_results[0] = result
+                                   st.session_state.get("_cached_img_name", "Cached"), log_analytics=False)
+            st.session_state.batch_results = [result]
         except Exception:
             pass
         return
 
-    # Batch: recompute only first image for quick visual feedback
+    # Batch: rebuild entire results list to keep ordering and avoid duplication
     batch = st.session_state.get("_cached_batch") or []
     if not batch:
         return
     try:
-        first = batch[0]
-        img = Image.open(io.BytesIO(first["bytes"]))
-        result = process_image(img.convert("RGB"), reader, st.session_state.overlap_threshold,
-                               first.get("name", "Cached"))
-        if st.session_state.batch_results:
-            st.session_state.batch_results[0] = result
+        new_results = []
+        for entry in batch:
+            img = Image.open(io.BytesIO(entry["bytes"]))
+            res = process_image(img.convert("RGB"), reader, st.session_state.overlap_threshold,
+                                entry.get("name", "Cached"), log_analytics=False)
+            new_results.append(res)
+        st.session_state.batch_results = new_results
     except Exception:
         pass
 
